@@ -1,11 +1,8 @@
-
 /*
 Todos los objetos de base de datos nuevos creados por el usuario deben pertenecer
 a un esquema de base de datos creado con el nombre del grupo.
-
 Todas las columnas creadas para las nuevas tablas deberán respetar los mismos
 tipos de datos.
-
 IMPORTANTE: El campo PASAJE_FECHA_COMPRA de la tabla maestra no debe tenerse en cuenta para la migración.
 */
 
@@ -25,7 +22,6 @@ GO
 /* TIPS:
 ORDEN:
 TABLAS -> INDICES  -> VISTAS  -> FUNCIONES  -> SP  ->TRIGGERS  -> LLENADO DE TABLAS  -> (CREACION DE INDICES?)
-
 PARA SABER LAS FKS DE UNA TABLA:
 EXEC sp_fkeys 'AUTOPARTES'
 */
@@ -347,6 +343,7 @@ FROM gd_esquema.Maestra m
 WHERE m.CLIENTE_DNI IS NOT NULL OR m.CLIENTE_APELLIDO IS NOT NULL;
 GO
 
+EXEC LOS_CAPOS.importar_clientes_compras
 
 IF OBJECT_ID('tempdb..#Cliente_comprador') IS NOT NULL 
     DROP TABLE #Cliente_comprador
@@ -363,24 +360,30 @@ GO
 SELECT distinct(CC.COMPRA_NRO), c.id_clientes_compras, CC.CLIENTE_DNI
 INTO #NRO_COMPRAxCLIENTE
 FROM LOS_CAPOS.CLIENTES_COMPRAS c
-JOIN #Cliente_comprador cc ON c.cliente_c_dni = cc.CLIENTE_DNI
+JOIN #Cliente_comprador cc ON c.cliente_c_dni = cc.CLIENTE_DNI AND c.cliente_c_apellido = cc.CLIENTE_APELLIDO
+GO
 
-UPDATE LOS_CAPOS.COMPRAS
-	SET LOS_CAPOS.COMPRAS.id_clientes_compras = (SELECT DISTINCT(ncc.id_clientes_compras)
-												 FROM #NRO_COMPRAxCLIENTE ncc
-												 WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO)
+/*
+SELECT * 
+FROM LOS_CAPOS.CLIENTES_COMPRAS
+
+SELECT *
+FROM gd_esquema.Maestra
+WHERE CLIENTE_DNI = 85850168
+
+SELECT *
+FROM LOS_CAPOS.COMPRAS
+ORDER BY COMPRA_NRO
+
+SELECT *
+FROM #NRO_COMPRAxCLIENTE ncc
+ORDER BY COMPRA_NRO
+WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO
 
 select distinct(nnc.COMPRA_NRO),  nnc.id_clientes_compras 
 from #NRO_COMPRAxCLIENTE nnc
 
-select * from LOS_CAPOS.COMPRAS c
-where c.compra_nro = 187539
-
-SELECT ncc.id_clientes_compras
-FROM #NRO_COMPRAxCLIENTE ncc
-WHERE ncc.COMPRA_NRO  = 187539
-
-
+*/
 -- SUCURSALES
 
 IF EXISTS (SELECT *  FROM  sysobjects 
@@ -423,7 +426,11 @@ UPDATE LOS_CAPOS.COMPRAS
 													dc.SUCURSAL_DIRECCION = s.sucursal_direccion
 					 WHERE dc.COMPRA_NRO = LOS_CAPOS.COMPRAS.compra_nro)
 
-
+UPDATE LOS_CAPOS.COMPRAS
+	SET LOS_CAPOS.COMPRAS.id_clientes_compras = (SELECT ncc.id_clientes_compras
+												 FROM #NRO_COMPRAxCLIENTE ncc
+												 WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO)
+GO
 -- PARA VER QUE SE LLENEN - DESPUES HAY QUE BORRAR
 /*
 select * from LOS_CAPOS.CAJAS

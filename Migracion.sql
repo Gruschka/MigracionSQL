@@ -157,6 +157,18 @@ CREATE TABLE LOS_CAPOS.MODELOS (
 	fabricante_nombre nvarchar(255)
 );
 
+
+IF OBJECT_ID('LOS_CAPOS.COMPRAS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.COMPRAS;
+CREATE TABLE LOS_CAPOS.COMPRAS (
+	id_compras INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	compra_nro decimal(18,0),
+	compra_fecha datetime2(3),
+	id_item_compra int,
+	id_sucursal int,
+	id_clientes_compras int,
+);
+
 IF OBJECT_ID('LOS_CAPOS.CLIENTES_COMPRAS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.CLIENTES_COMPRAS;
 CREATE TABLE LOS_CAPOS.CLIENTES_COMPRAS (
@@ -166,18 +178,8 @@ CREATE TABLE LOS_CAPOS.CLIENTES_COMPRAS (
 	cliente_c_dni decimal(18,0),
 	cliente_c_mail nvarchar(255),
 	cliente_fecha_nac datetime2(3),
-	id_compras int
 );
 
-IF OBJECT_ID('LOS_CAPOS.COMPRAS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.COMPRAS;
-CREATE TABLE LOS_CAPOS.COMPRAS (
-	id_compras INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	compra_nro decimal(18,0),
-	compra_fecha datetime2(3),
-	id_item_compra int,
-	id_sucursal int
-);
  
 IF OBJECT_ID('LOS_CAPOS.SUCURSALES', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.SUCURSALES;
@@ -221,12 +223,11 @@ ALTER TABLE LOS_CAPOS.ITEMS_FACTURAS
 	ADD FOREIGN KEY (id_autoparte) REFERENCES LOS_CAPOS.AUTOPARTES(id_autoparte),
     	FOREIGN KEY (id_auto) REFERENCES LOS_CAPOS.AUTOS(id_auto)
 
-ALTER TABLE LOS_CAPOS.CLIENTES_COMPRAS
-	ADD FOREIGN KEY (id_compras) REFERENCES LOS_CAPOS.COMPRAS(id_compras)
-
 ALTER TABLE LOS_CAPOS.COMPRAS
 	ADD FOREIGN KEY (id_item_compra) REFERENCES LOS_CAPOS.ITEMS_COMPRAS(id_item),
-    	FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal)
+    	FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal),
+		FOREIGN KEY (id_clientes_compras) REFERENCES LOS_CAPOS.CLIENTES_COMPRAS(id_clientes_compras)
+
 
 
 /***** CREACION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
@@ -333,7 +334,7 @@ JOIN #Modelos_de_Autopartes ap ON (m.modelo_codigo = ap.cod_modelo)
 UPDATE LOS_CAPOS.AUTOPARTES 
 SET id_modelo = (SELECT id_modelo FROM #PK_De_Autopartes WHERE autoparte_codigo = id_parte)
 
-/***** COMPRAS*****/
+/******************** CLIENTES COMPRAS *************************/
 IF EXISTS ( SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.importar_clientes_compras') 
 					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
@@ -346,11 +347,44 @@ FROM gd_esquema.Maestra m
 WHERE m.CLIENTE_DNI IS NOT NULL OR m.CLIENTE_APELLIDO IS NOT NULL;
 GO
 
-EXEC LOS_CAPOS.importar_clientes_compras
+
+IF OBJECT_ID('tempdb..#Cliente_comprador') IS NOT NULL 
+    DROP TABLE #Cliente_comprador
+GO
+
+SELECT m.CLIENTE_DNI, m.COMPRA_NRO, m.CLIENTE_APELLIDO
+INTO #Cliente_comprador
+FROM gd_esquema.Maestra m
+GO
+
+IF OBJECT_ID('tempdb..#NRO_COMPRAxCLIENTE') IS NOT NULL 
+    DROP TABLE #NRO_COMPRAxCLIENTE
+GO
+SELECT distinct(CC.COMPRA_NRO), c.id_clientes_compras, CC.CLIENTE_DNI
+INTO #NRO_COMPRAxCLIENTE
+FROM LOS_CAPOS.CLIENTES_COMPRAS c
+JOIN #Cliente_comprador cc ON c.cliente_c_dni = cc.CLIENTE_DNI
+
+UPDATE LOS_CAPOS.COMPRAS
+	SET LOS_CAPOS.COMPRAS.id_clientes_compras = (SELECT DISTINCT(ncc.id_clientes_compras)
+												 FROM #NRO_COMPRAxCLIENTE ncc
+												 WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO)
+
+select distinct(nnc.COMPRA_NRO),  nnc.id_clientes_compras 
+from #NRO_COMPRAxCLIENTE nnc
+
+select * from LOS_CAPOS.COMPRAS c
+where c.compra_nro = 187539
+
+SELECT ncc.id_clientes_compras
+FROM #NRO_COMPRAxCLIENTE ncc
+WHERE ncc.COMPRA_NRO  = 187539
+
+
 -- SUCURSALES
 
-IF EXISTS ( SELECT *  FROM   sysobjects 
-            WHERE  id = object_id(N'LOS_CAPOS.importar_sucursales') 
+IF EXISTS (SELECT *  FROM  sysobjects 
+           WHERE  id = object_id(N'LOS_CAPOS.importar_sucursales') 
 					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
 	DROP PROCEDURE LOS_CAPOS.importar_sucursales
 GO
@@ -369,7 +403,7 @@ IF EXISTS ( SELECT *  FROM   sysobjects
 GO
 CREATE PROCEDURE LOS_CAPOS.importar_compras AS
 INSERT INTO LOS_CAPOS.COMPRAS(compra_nro, compra_fecha)
-SELECT m.COMPRA_NRO, COMPRA_FECHA
+SELECT DISTINCT(m.COMPRA_NRO), COMPRA_FECHA
 FROM gd_esquema.Maestra m
 WHERE m.COMPRA_NRO IS NOT NULL
 GO

@@ -166,6 +166,7 @@ CREATE TABLE LOS_CAPOS.CLIENTES_COMPRAS (
 	cliente_c_nombre nvarchar(255),
 	cliente_c_dni decimal(18,0),
 	cliente_c_mail nvarchar(255),
+	cliente_fecha_nac datetime2(3),
 	id_compras int
 );
 
@@ -229,8 +230,17 @@ ALTER TABLE LOS_CAPOS.COMPRAS
     	FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal)
 
 
+/***** CREACION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
 
-CREATE PROCEDURE importar_motores AS
+DROP PROCEDURE LOS_CAPOS.importar_motores
+DROP PROCEDURE LOS_CAPOS.importar_cajas
+DROP PROCEDURE LOS_CAPOS.importar_transmisiones
+DROP PROCEDURE LOS_CAPOS.importar_tipos_autos
+DROP PROCEDURE LOS_CAPOS.importar_modelos
+DROP PROCEDURE LOS_CAPOS.importar_autopartes
+
+
+CREATE PROCEDURE LOS_CAPOS.importar_motores AS
 INSERT INTO LOS_CAPOS.MOTORES (tipo_motor_codigo)
 SELECT DISTINCT(tipo_motor_codigo)
 FROM gd_esquema.Maestra
@@ -238,7 +248,7 @@ WHERE tipo_motor_codigo IS NOT NULL;
 GO
 
 
-CREATE PROCEDURE importar_cajas AS
+CREATE PROCEDURE LOS_CAPOS.importar_cajas AS
 INSERT INTO LOS_CAPOS.CAJAS (TIPO_CAJA_CODIGO, TIPO_CAJA_DESC)
 SELECT DISTINCT(TIPO_CAJA_CODIGO), TIPO_CAJA_DESC
 FROM gd_esquema.Maestra
@@ -246,7 +256,7 @@ WHERE TIPO_CAJA_CODIGO IS NOT NULL;
 GO
 
 
-CREATE PROCEDURE importar_transmisiones AS
+CREATE PROCEDURE LOS_CAPOS.importar_transmisiones AS
 INSERT INTO LOS_CAPOS.TRANSMISIONES (TIPO_TRANSMISION_CODIGO, TIPO_TRANSMISION_DESC)
 SELECT DISTINCT(TIPO_TRANSMISION_CODIGO), TIPO_TRANSMISION_DESC
 FROM gd_esquema.Maestra
@@ -254,72 +264,105 @@ WHERE TIPO_TRANSMISION_CODIGO IS NOT NULL;
 GO
 
 
-CREATE PROCEDURE importar_tipos_autos AS
+CREATE PROCEDURE LOS_CAPOS.importar_tipos_autos AS
 INSERT INTO LOS_CAPOS.TIPOS_AUTOS (tipo_auto_codigo, tipo_auto_desc)
 SELECT DISTINCT(tipo_auto_codigo), TIPO_AUTO_DESC
 FROM gd_esquema.Maestra
 WHERE tipo_auto_codigo IS NOT NULL;
 GO
 
-CREATE PROCEDURE importar_modelos AS
+CREATE PROCEDURE LOS_CAPOS.importar_modelos AS
 INSERT INTO LOS_CAPOS.MODELOS (modelo_codigo, modelo_nombre, modelo_potencia, fabricante_nombre)
 SELECT DISTINCT(modelo_codigo), modelo_nombre, modelo_potencia, fabricante_nombre
 FROM gd_esquema.Maestra
 WHERE modelo_codigo IS NOT NULL;
 GO
 
-/* FALTA ACTUALIZAR STOCK Y ID_MODELO (FK A MODELOS)*/
-drop procedure importar_autopartes
-CREATE PROCEDURE importar_autopartes AS
+/* Autopartes */
+CREATE PROCEDURE LOS_CAPOS.importar_autopartes AS
 INSERT INTO LOS_CAPOS.AUTOPARTES (autoparte_codigo, autoparte_descripcion)
 SELECT DISTINCT(auto_parte_codigo), auto_parte_descripcion
 FROM gd_esquema.Maestra
 WHERE auto_parte_codigo IS NOT NULL;
 GO
 
-DROP TABLE #Modelos_de_Autopartes
-go
+--DROP TABLE #Modelos_de_Autopartes
+--go
+
 SELECT DISTINCT(AUTO_PARTE_CODIGO) as cod_auto_parte, MODELO_CODIGO as cod_modelo
 INTO #Modelos_de_Autopartes
 FROM gd_esquema.Maestra
 
-select * from LOS_CAPOS.MODELOs
-
-drop table #PK_De_Autopartes
+--drop table #PK_De_Autopartes
 select ID_MODELO as id_modelo, ap.cod_auto_parte as id_parte
 INTO #PK_De_Autopartes
 FROM LOS_CAPOS.MODELOS as m
 JOIN #Modelos_de_Autopartes ap ON (m.modelo_codigo = ap.cod_modelo)
 
-select * from #PK_De_Autopartes
-
 UPDATE LOS_CAPOS.AUTOPARTES 
 SET id_modelo = (SELECT id_modelo FROM #PK_De_Autopartes WHERE autoparte_codigo = id_parte)
 
-select * from LOS_CAPOS.AUTOPARTES
-SELECT * FROM LOS_CAPOS.MODELOS
+/***** COMPRAS*****/
+-- CLIENTES COMPRAS
+DROP PROCEDURE LOS_CAPOS.importar_clientes_compras
+DROP PROCEDURE LOS_CAPOS.importar_sucursales
+DROP PROCEDURE LOS_CAPOS.importar_compras
 
-select m.MODELO_CODIGO, m.AUTO_PARTE_CODIGO
-from gd_esquema.Maestra as m
-where m.AUTO_PARTE_CODIGO = 1010
+CREATE PROCEDURE LOS_CAPOS.importar_clientes_compras AS
+INSERT INTO LOS_CAPOS.CLIENTES_COMPRAS(cliente_c_dni, cliente_c_apellido, cliente_c_nombre,  cliente_c_mail, cliente_fecha_nac)
+SELECT DISTINCT(m.CLIENTE_DNI), m.CLIENTE_APELLIDO, m.CLIENTE_NOMBRE, m.CLIENTE_MAIL, m.CLIENTE_FECHA_NAC
+FROM gd_esquema.Maestra m
+WHERE m.CLIENTE_DNI IS NOT NULL OR m.CLIENTE_APELLIDO IS NOT NULL;
+GO
+-- SUCURSALES
 
-select a.autoparte_codigo, a.id_modelo
-from LOS_CAPOS.AUTOPARTES a
 
+CREATE PROCEDURE LOS_CAPOS.importar_sucursales AS
+INSERT INTO LOS_CAPOS.SUCURSALES(sucursal_direccion, sucursal_mail, sucursal_telefono, sucursal_ciudad)
+SELECT DISTINCT(m.FAC_SUCURSAL_DIRECCION), m.SUCURSAL_MAIL, m.SUCURSAL_TELEFONO, m.SUCURSAL_CIUDAD
+FROM gd_esquema.Maestra m
+WHERE m.FAC_SUCURSAL_DIRECCION IS NOT NULL
+GO
+
+CREATE PROCEDURE LOS_CAPOS.importar_compras AS
+INSERT INTO LOS_CAPOS.COMPRAS(compra_nro, compra_fecha)
+SELECT m.COMPRA_NRO, COMPRA_FECHA
+FROM gd_esquema.Maestra m
+WHERE m.COMPRA_NRO IS NOT NULL
+GO
+
+SELECT m.COMPRA_NRO, m.COMPRA_FECHA, m.SUCURSAL_DIRECCION, m.SUCURSAL_CIUDAD, m.SUCURSAL_TELEFONO
+INTO #Direccion_De_Compra
+FROM gd_esquema.Maestra m
+
+UPDATE LOS_CAPOS.COMPRAS  
+  SET id_sucursal = (SELECT distinct(s.id_sucursal)
+					 FROM #Direccion_De_Compra dc
+					 JOIN LOS_CAPOS.SUCURSALES s on dc.SUCURSAL_CIUDAD = s.sucursal_ciudad AND
+													dc.SUCURSAL_DIRECCION = s.sucursal_direccion
+					 WHERE dc.COMPRA_NRO = LOS_CAPOS.COMPRAS.compra_nro)
+
+
+/***** EJECUCION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
 EXEC importar_cajas
 EXEC importar_motores
 EXEC importar_transmisiones
 EXEC importar_tipos_autos
 EXEC importar_modelos
 EXEC importar_autopartes
+EXEC importar_clientes_compras
+EXEC importar_sucursales
+EXEC importar_compras
 
+-- PARA VER QUE SE LLENEN - DESPUES HAY QUE BORRAR
 select * from LOS_CAPOS.CAJAS
 select * from LOS_CAPOS.motores
 select * from LOS_CAPOS.transmisiones
 select * from LOS_CAPOS.tipos_autos
 select * from LOS_CAPOS.modelos
 select * from LOS_CAPOS.AUTOPARTES
-
+select * from LOS_CAPOS.CLIENTES_COMPRAS
+select * from LOS_CAPOS.COMPRAS
 /*
 IF EXISTS ( SELECT * 
             FROM   sysobjects 

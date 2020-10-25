@@ -1,4 +1,3 @@
-USE GD2C2020
 
 /*
 Todos los objetos de base de datos nuevos creados por el usuario deben pertenecer
@@ -14,12 +13,12 @@ IMPORTANTE: El campo PASAJE_FECHA_COMPRA de la tabla maestra no debe tenerse en 
 USE GD2C2020
 GO
 
+
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE NAME = 'LOS_CAPOS')
 BEGIN
     EXEC ('CREATE SCHEMA LOS_CAPOS')
 END
 GO
-
 
 -- CREACIÓN DE LAS TABLAS
 
@@ -232,14 +231,11 @@ ALTER TABLE LOS_CAPOS.COMPRAS
 
 /***** CREACION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
 
-DROP PROCEDURE LOS_CAPOS.importar_motores
-DROP PROCEDURE LOS_CAPOS.importar_cajas
-DROP PROCEDURE LOS_CAPOS.importar_transmisiones
-DROP PROCEDURE LOS_CAPOS.importar_tipos_autos
-DROP PROCEDURE LOS_CAPOS.importar_modelos
-DROP PROCEDURE LOS_CAPOS.importar_autopartes
-
-
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_motores') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_motores
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_motores AS
 INSERT INTO LOS_CAPOS.MOTORES (tipo_motor_codigo)
 SELECT DISTINCT(tipo_motor_codigo)
@@ -247,7 +243,11 @@ FROM gd_esquema.Maestra
 WHERE tipo_motor_codigo IS NOT NULL;
 GO
 
-
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_cajas') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_cajas
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_cajas AS
 INSERT INTO LOS_CAPOS.CAJAS (TIPO_CAJA_CODIGO, TIPO_CAJA_DESC)
 SELECT DISTINCT(TIPO_CAJA_CODIGO), TIPO_CAJA_DESC
@@ -256,6 +256,11 @@ WHERE TIPO_CAJA_CODIGO IS NOT NULL;
 GO
 
 
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_transmisiones') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_transmisiones
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_transmisiones AS
 INSERT INTO LOS_CAPOS.TRANSMISIONES (TIPO_TRANSMISION_CODIGO, TIPO_TRANSMISION_DESC)
 SELECT DISTINCT(TIPO_TRANSMISION_CODIGO), TIPO_TRANSMISION_DESC
@@ -263,7 +268,11 @@ FROM gd_esquema.Maestra
 WHERE TIPO_TRANSMISION_CODIGO IS NOT NULL;
 GO
 
-
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_tipos_autos') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_tipos_autos
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_tipos_autos AS
 INSERT INTO LOS_CAPOS.TIPOS_AUTOS (tipo_auto_codigo, tipo_auto_desc)
 SELECT DISTINCT(tipo_auto_codigo), TIPO_AUTO_DESC
@@ -271,6 +280,11 @@ FROM gd_esquema.Maestra
 WHERE tipo_auto_codigo IS NOT NULL;
 GO
 
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_modelos') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_modelos
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_modelos AS
 INSERT INTO LOS_CAPOS.MODELOS (modelo_codigo, modelo_nombre, modelo_potencia, fabricante_nombre)
 SELECT DISTINCT(modelo_codigo), modelo_nombre, modelo_potencia, fabricante_nombre
@@ -278,7 +292,19 @@ FROM gd_esquema.Maestra
 WHERE modelo_codigo IS NOT NULL;
 GO
 
+--EJECUTAMOS PROCEDURES
+EXEC LOS_CAPOS.importar_cajas
+EXEC LOS_CAPOS.importar_motores
+EXEC LOS_CAPOS.importar_transmisiones
+EXEC LOS_CAPOS.importar_tipos_autos
+EXEC LOS_CAPOS.importar_modelos
+
 /* Autopartes */
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_autopartes') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_autopartes
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_autopartes AS
 INSERT INTO LOS_CAPOS.AUTOPARTES (autoparte_codigo, autoparte_descripcion)
 SELECT DISTINCT(auto_parte_codigo), auto_parte_descripcion
@@ -286,14 +312,19 @@ FROM gd_esquema.Maestra
 WHERE auto_parte_codigo IS NOT NULL;
 GO
 
---DROP TABLE #Modelos_de_Autopartes
---go
+EXEC LOS_CAPOS.importar_autopartes
 
+IF OBJECT_ID('tempdb..#Modelos_de_Autopartes') IS NOT NULL 
+    DROP TABLE #Modelos_de_Autopartes 
+GO
 SELECT DISTINCT(AUTO_PARTE_CODIGO) as cod_auto_parte, MODELO_CODIGO as cod_modelo
 INTO #Modelos_de_Autopartes
 FROM gd_esquema.Maestra
+GO
 
---drop table #PK_De_Autopartes
+IF OBJECT_ID('tempdb..#PK_De_Autopartes') IS NOT NULL 
+    DROP TABLE #PK_De_Autopartes 
+GO
 select ID_MODELO as id_modelo, ap.cod_auto_parte as id_parte
 INTO #PK_De_Autopartes
 FROM LOS_CAPOS.MODELOS as m
@@ -303,34 +334,50 @@ UPDATE LOS_CAPOS.AUTOPARTES
 SET id_modelo = (SELECT id_modelo FROM #PK_De_Autopartes WHERE autoparte_codigo = id_parte)
 
 /***** COMPRAS*****/
--- CLIENTES COMPRAS
-DROP PROCEDURE LOS_CAPOS.importar_clientes_compras
-DROP PROCEDURE LOS_CAPOS.importar_sucursales
-DROP PROCEDURE LOS_CAPOS.importar_compras
-
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_clientes_compras') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_clientes_compras
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_clientes_compras AS
 INSERT INTO LOS_CAPOS.CLIENTES_COMPRAS(cliente_c_dni, cliente_c_apellido, cliente_c_nombre,  cliente_c_mail, cliente_fecha_nac)
 SELECT DISTINCT(m.CLIENTE_DNI), m.CLIENTE_APELLIDO, m.CLIENTE_NOMBRE, m.CLIENTE_MAIL, m.CLIENTE_FECHA_NAC
 FROM gd_esquema.Maestra m
 WHERE m.CLIENTE_DNI IS NOT NULL OR m.CLIENTE_APELLIDO IS NOT NULL;
 GO
+
+EXEC LOS_CAPOS.importar_clientes_compras
 -- SUCURSALES
 
-
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_sucursales') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_sucursales
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_sucursales AS
 INSERT INTO LOS_CAPOS.SUCURSALES(sucursal_direccion, sucursal_mail, sucursal_telefono, sucursal_ciudad)
 SELECT DISTINCT(m.FAC_SUCURSAL_DIRECCION), m.SUCURSAL_MAIL, m.SUCURSAL_TELEFONO, m.SUCURSAL_CIUDAD
 FROM gd_esquema.Maestra m
 WHERE m.FAC_SUCURSAL_DIRECCION IS NOT NULL
 GO
+EXEC LOS_CAPOS.importar_sucursales
 
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_compras') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_compras
+GO
 CREATE PROCEDURE LOS_CAPOS.importar_compras AS
 INSERT INTO LOS_CAPOS.COMPRAS(compra_nro, compra_fecha)
 SELECT m.COMPRA_NRO, COMPRA_FECHA
 FROM gd_esquema.Maestra m
 WHERE m.COMPRA_NRO IS NOT NULL
 GO
+EXEC LOS_CAPOS.importar_compras
 
+IF OBJECT_ID('tempdb..#Direccion_De_Compra') IS NOT NULL 
+    DROP TABLE #Direccion_De_Compra
+GO
 SELECT m.COMPRA_NRO, m.COMPRA_FECHA, m.SUCURSAL_DIRECCION, m.SUCURSAL_CIUDAD, m.SUCURSAL_TELEFONO
 INTO #Direccion_De_Compra
 FROM gd_esquema.Maestra m
@@ -343,18 +390,8 @@ UPDATE LOS_CAPOS.COMPRAS
 					 WHERE dc.COMPRA_NRO = LOS_CAPOS.COMPRAS.compra_nro)
 
 
-/***** EJECUCION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
-EXEC importar_cajas
-EXEC importar_motores
-EXEC importar_transmisiones
-EXEC importar_tipos_autos
-EXEC importar_modelos
-EXEC importar_autopartes
-EXEC importar_clientes_compras
-EXEC importar_sucursales
-EXEC importar_compras
-
 -- PARA VER QUE SE LLENEN - DESPUES HAY QUE BORRAR
+/*
 select * from LOS_CAPOS.CAJAS
 select * from LOS_CAPOS.motores
 select * from LOS_CAPOS.transmisiones
@@ -363,12 +400,4 @@ select * from LOS_CAPOS.modelos
 select * from LOS_CAPOS.AUTOPARTES
 select * from LOS_CAPOS.CLIENTES_COMPRAS
 select * from LOS_CAPOS.COMPRAS
-/*
-IF EXISTS ( SELECT * 
-            FROM   sysobjects 
-            WHERE  id = object_id(N'LOS_CAPOS.importar_cajas') 
-                   and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
-BEGIN
-    DROP PROCEDURE LOS_CAPOS.importar_cajas
-END 
 */

@@ -261,17 +261,64 @@ FROM gd_esquema.Maestra
 WHERE tipo_auto_codigo IS NOT NULL;
 GO
 
+CREATE PROCEDURE importar_modelos AS
+INSERT INTO LOS_CAPOS.MODELOS (modelo_codigo, modelo_nombre, modelo_potencia, fabricante_nombre)
+SELECT DISTINCT(modelo_codigo), modelo_nombre, modelo_potencia, fabricante_nombre
+FROM gd_esquema.Maestra
+WHERE modelo_codigo IS NOT NULL;
+GO
+
+/* FALTA ACTUALIZAR STOCK Y ID_MODELO (FK A MODELOS)*/
+drop procedure importar_autopartes
+CREATE PROCEDURE importar_autopartes AS
+INSERT INTO LOS_CAPOS.AUTOPARTES (autoparte_codigo, autoparte_descripcion)
+SELECT DISTINCT(auto_parte_codigo), auto_parte_descripcion
+FROM gd_esquema.Maestra
+WHERE auto_parte_codigo IS NOT NULL;
+GO
+
+DROP TABLE #Modelos_de_Autopartes
+go
+SELECT DISTINCT(AUTO_PARTE_CODIGO) as cod_auto_parte, MODELO_CODIGO as cod_modelo
+INTO #Modelos_de_Autopartes
+FROM gd_esquema.Maestra
+
+select * from LOS_CAPOS.MODELOs
+
+drop table #PK_De_Autopartes
+select ID_MODELO as id_modelo, ap.cod_auto_parte as id_parte
+INTO #PK_De_Autopartes
+FROM LOS_CAPOS.MODELOS as m
+JOIN #Modelos_de_Autopartes ap ON (m.modelo_codigo = ap.cod_modelo)
+
+select * from #PK_De_Autopartes
+
+UPDATE LOS_CAPOS.AUTOPARTES 
+SET id_modelo = (SELECT id_modelo FROM #PK_De_Autopartes WHERE autoparte_codigo = id_parte)
+
+select * from LOS_CAPOS.AUTOPARTES
+SELECT * FROM LOS_CAPOS.MODELOS
+
+select m.MODELO_CODIGO, m.AUTO_PARTE_CODIGO
+from gd_esquema.Maestra as m
+where m.AUTO_PARTE_CODIGO = 1010
+
+select a.autoparte_codigo, a.id_modelo
+from LOS_CAPOS.AUTOPARTES a
+
 EXEC importar_cajas
 EXEC importar_motores
 EXEC importar_transmisiones
 EXEC importar_tipos_autos
+EXEC importar_modelos
+EXEC importar_autopartes
 
 select * from LOS_CAPOS.CAJAS
 select * from LOS_CAPOS.motores
 select * from LOS_CAPOS.transmisiones
 select * from LOS_CAPOS.tipos_autos
-
-
+select * from LOS_CAPOS.modelos
+select * from LOS_CAPOS.AUTOPARTES
 
 /*
 IF EXISTS ( SELECT * 

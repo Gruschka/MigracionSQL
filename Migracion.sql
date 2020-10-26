@@ -494,19 +494,7 @@ WHERE COMPRA_NRO IS NOT NULL and COMPRA_PRECIO = 3858303.25
 
 /******************** VENTAS *************************/
 
---CLIENTES VENTAS
-IF EXISTS ( SELECT *  FROM   sysobjects 
-            WHERE  id = object_id(N'LOS_CAPOS.importar_clientes_Ventas') 
-					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
-	DROP PROCEDURE LOS_CAPOS.importar_clientes_Ventas
-GO
-CREATE PROCEDURE LOS_CAPOS.importar_clientes_Ventas AS
-INSERT INTO LOS_CAPOS.CLIENTES_VENTAS(cliente_v_apellido, cliente_v_nombre, cliente_v_direccion, cliente_v_dni, cliente_v_fecha_nac, cliente_v_mail)
-SELECT m.FAC_CLIENTE_APELLIDO, m.FAC_CLIENTE_NOMBRE, m.FAC_CLIENTE_DIRECCION, m.FAC_CLIENTE_DNI, m.FAC_CLIENTE_FECHA_NAC, m.FAC_CLIENTE_MAIL
-FROM gd_esquema.Maestra m
-WHERE m.FAC_CLIENTE_APELLIDO IS NOT NULL
-GO
-EXEC LOS_CAPOS.importar_clientes_Ventas
+
 --SELECT *
 --FROM LOS_CAPOS.CLIENTES_VENTAS
 
@@ -527,6 +515,25 @@ FROM gd_esquema.Maestra m
 WHERE m.FAC_CLIENTE_APELLIDO IS NOT NULL
 GO
 EXEC LOS_CAPOS.importar_facturas
+
+--CLIENTES VENTAS
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_clientes_Ventas') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_clientes_Ventas
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_clientes_Ventas AS
+INSERT INTO LOS_CAPOS.CLIENTES_VENTAS(cliente_v_apellido, cliente_v_nombre, cliente_v_direccion, cliente_v_dni, cliente_v_fecha_nac, cliente_v_mail, id_factura)
+SELECT FAC_CLIENTE_APELLIDO, FAC_CLIENTE_NOMBRE, FAC_CLIENTE_DIRECCION, FAC_CLIENTE_DNI, FAC_CLIENTE_FECHA_NAC, FAC_CLIENTE_MAIL, id_factura
+FROM (SELECT m.FAC_CLIENTE_APELLIDO, m.FAC_CLIENTE_NOMBRE, m.FAC_CLIENTE_DIRECCION, m.FAC_CLIENTE_DNI, m.FAC_CLIENTE_FECHA_NAC, m.FAC_CLIENTE_MAIL, F.id_factura
+	  FROM  gd_esquema.Maestra m
+JOIN LOS_CAPOS.FACTURAS F ON (F.factura_nro = m.FACTURA_NRO  AND F.fac_cliente_apellido = m.FAC_CLIENTE_APELLIDO
+									AND F.fac_cliente_dni = m.FAC_CLIENTE_DNI AND F.fac_cliente_mail = m.FAC_CLIENTE_MAIL
+									AND F.fac_cliente_nombre = m.fac_Cliente_nombre)
+	  WHERE F.factura_nro IS NOT NULL) AS enM
+GO
+EXEC LOS_CAPOS.importar_clientes_Ventas
+
 --SELECT *
 --FROM LOS_CAPOS.FACTURAS
 
@@ -554,6 +561,33 @@ GO
 EXEC LOS_CAPOS.importar_items_facturas
 GO
 
+UPDATE LOS_CAPOS.AUTOPARTES 
+SET en_stock = CASE WHEN
+				EXISTS (SELECT ITC.id_autoparte 
+				FROM LOS_CAPOS.ITEMS_COMPRAS ITC 
+				WHERE LOS_CAPOS.AUTOPARTES.id_autoparte = ITC.id_autoparte)
+				AND NOT EXISTS (SELECT ITF.id_autoparte 
+				FROM LOS_CAPOS.ITEMS_FACTURAS ITF 
+				WHERE LOS_CAPOS.AUTOPARTES.id_autoparte = ITF.id_autoparte)
+				THEN 1
+				ELSE
+				 0
+				END;
+GO
+
+UPDATE LOS_CAPOS.AUTOS 
+SET en_stock = CASE WHEN
+				EXISTS (SELECT ITC.id_auto
+				FROM LOS_CAPOS.ITEMS_COMPRAS ITC 
+				WHERE LOS_CAPOS.AUTOS.id_auto = ITC.id_auto)
+				AND NOT EXISTS (SELECT ITF.id_auto 
+				FROM LOS_CAPOS.ITEMS_FACTURAS ITF 
+				WHERE LOS_CAPOS.AUTOS.id_auto = ITF.id_auto)
+				THEN 1
+				ELSE
+				 0
+				END;
+GO
 
 /*
 SELECT *
@@ -572,6 +606,7 @@ select * from LOS_CAPOS.transmisiones
 select * from LOS_CAPOS.tipos_autos
 select * from LOS_CAPOS.modelos
 select * from LOS_CAPOS.AUTOS
+select * from LOS_CAPOS.AUTOPARTES
 select * from LOS_CAPOS.CLIENTES_COMPRAS
 select * from LOS_CAPOS.COMPRAS
 select * from LOS_CAPOS.ITEMS_COMPRAS

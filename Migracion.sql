@@ -47,8 +47,8 @@ IF OBJECT_ID('LOS_CAPOS.ITEMS_FACTURAS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.ITEMS_FACTURAS;
 CREATE TABLE LOS_CAPOS.ITEMS_FACTURAS (
 	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	precio_unitario_facturado decimal(18,0),
-	precio_total_facturado decimal(18,0),
+	precio_unitario_facturado decimal(18,2),
+	precio_total_facturado decimal(18,2),
 	cant_facturada decimal(18,0),
 	id_factura int,
 	id_autoparte int,
@@ -559,6 +559,16 @@ FROM (SELECT M.PRECIO_FACTURADO, M.CANT_FACTURADA, LCAP.id_autoparte, LCA.id_aut
 GO
 
 EXEC LOS_CAPOS.importar_items_facturas
+GO
+
+UPDATE LOS_CAPOS.ITEMS_FACTURAS
+SET precio_unitario_facturado = (SELECT (LOS_CAPOS.ITEMS_FACTURAS.precio_total_facturado / LOS_CAPOS.ITEMS_FACTURAS.cant_facturada) 
+	 AS UNITARIO)
+GO
+
+UPDATE LOS_CAPOS.ITEMS_COMPRAS
+SET compra_precio_unitario = (SELECT (LOS_CAPOS.ITEMS_COMPRAS.compra_precio_total / LOS_CAPOS.ITEMS_COMPRAS.compra_cant) 
+	 AS UNITARIO)
 GO
 
 UPDATE LOS_CAPOS.AUTOPARTES 

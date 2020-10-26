@@ -153,6 +153,17 @@ CREATE TABLE LOS_CAPOS.MODELOS (
 	fabricante_nombre nvarchar(255)
 );
 
+IF OBJECT_ID('LOS_CAPOS.ITEMS_COMPRAS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.ITEMS_COMPRAS;
+CREATE TABLE LOS_CAPOS.ITEMS_COMPRAS (
+	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	compra_cant decimal(18,0),
+	compra_precio_unitario decimal(18,0),
+	compra_precio_total decimal(18,0),
+	id_autoparte int,
+	id_auto int,
+	id_compras int
+);
 
 IF OBJECT_ID('LOS_CAPOS.COMPRAS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.COMPRAS;
@@ -160,7 +171,6 @@ CREATE TABLE LOS_CAPOS.COMPRAS (
 	id_compras INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	compra_nro decimal(18,0),
 	compra_fecha datetime2(3),
-	id_item_compra int,
 	id_sucursal int,
 	id_clientes_compras int,
 );
@@ -187,17 +197,6 @@ CREATE TABLE LOS_CAPOS.SUCURSALES (
 	sucursal_ciudad nvarchar(255),
 );
 
-IF OBJECT_ID('LOS_CAPOS.ITEMS_COMPRAS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.ITEMS_COMPRAS;
-CREATE TABLE LOS_CAPOS.ITEMS_COMPRAS (
-	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	compra_cant decimal(18,0),
-	compra_precio_unitario decimal(18,0),
-	compra_precio_total decimal(18,0),
-	id_autoparte int,
-	id_auto int
-);
-
 
 /** AGREGAMOS FKs**/
 ALTER TABLE LOS_CAPOS.AUTOS
@@ -220,10 +219,11 @@ ALTER TABLE LOS_CAPOS.ITEMS_FACTURAS
     	FOREIGN KEY (id_auto) REFERENCES LOS_CAPOS.AUTOS(id_auto)
 
 ALTER TABLE LOS_CAPOS.COMPRAS
-	ADD FOREIGN KEY (id_item_compra) REFERENCES LOS_CAPOS.ITEMS_COMPRAS(id_item),
-    	FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal),
+	ADD FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal),
 		FOREIGN KEY (id_clientes_compras) REFERENCES LOS_CAPOS.CLIENTES_COMPRAS(id_clientes_compras)
 
+ALTER TABLE LOS_CAPOS.ITEMS_COMPRAS
+	ADD FOREIGN KEY (id_compras) REFERENCES LOS_CAPOS.COMPRAS(id_compras)
 
 
 /***** CREACION DE PROCEDURES PARA IMPORTAR INFORMACION DE TABLA MAESTRA ****/
@@ -363,27 +363,6 @@ FROM LOS_CAPOS.CLIENTES_COMPRAS c
 JOIN #Cliente_comprador cc ON c.cliente_c_dni = cc.CLIENTE_DNI AND c.cliente_c_apellido = cc.CLIENTE_APELLIDO
 GO
 
-/*
-SELECT * 
-FROM LOS_CAPOS.CLIENTES_COMPRAS
-
-SELECT *
-FROM gd_esquema.Maestra
-WHERE CLIENTE_DNI = 85850168
-
-SELECT *
-FROM LOS_CAPOS.COMPRAS
-ORDER BY COMPRA_NRO
-
-SELECT *
-FROM #NRO_COMPRAxCLIENTE ncc
-ORDER BY COMPRA_NRO
-WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO
-
-select distinct(nnc.COMPRA_NRO),  nnc.id_clientes_compras 
-from #NRO_COMPRAxCLIENTE nnc
-
-*/
 -- SUCURSALES
 
 IF EXISTS (SELECT *  FROM  sysobjects 
@@ -431,6 +410,109 @@ UPDATE LOS_CAPOS.COMPRAS
 												 FROM #NRO_COMPRAxCLIENTE ncc
 												 WHERE LOS_CAPOS.COMPRAS.compra_nro = ncc.COMPRA_NRO)
 GO
+
+--> --> -->  ITEMS COMPRAS <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <--
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_items_compras') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_items_compras
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_items_compras AS
+INSERT INTO LOS_CAPOS.ITEMS_COMPRAS(compra_cant, compra_precio_unitario, compra_precio_total, id_compras, id_autoparte)
+SELECT COMPRA_CANT, COMPRA_PRECIO, COMPRA_PRECIO, id_compras, id_autoparte
+FROM (SELECT m.COMPRA_NRO, m.COMPRA_CANT, m.COMPRA_PRECIO, LCC.id_compras, LCAP.id_autoparte
+	  FROM gd_esquema.Maestra m
+		INNER JOIN LOS_CAPOS.COMPRAS LCC ON m.COMPRA_NRO = LCC.compra_nro
+		LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON m.AUTO_PARTE_CODIGO = LCAP.autoparte_codigo
+	  WHERE m.COMPRA_NRO IS NOT NULL
+	  ) AS enM
+GO
+EXEC LOS_CAPOS.importar_items_compras
+
+
+/*
+
+UPDATE LOS_CAPOS.ITEMS_COMPRAS
+	SET LOS_CAPOS.ITEMS_COMPRAS.id_autoparte = (SELECT LCAP.id_autoparte
+	  FROM gd_esquema.Maestra m		
+		LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON m.AUTO_PARTE_CODIGO = LCAP.autoparte_codigo
+	  WHERE m.COMPRA_NRO IS NOT NULL and m.FACTURA_NRO IS NULL)
+GO
+
+SELECT *
+FROM LOS_CAPOS.ITEMS_COMPRAS IC
+INNER JOIN LOS_CAPOS.AUTOPARTES AP ON IC.id_autoparte = AP.id_autoparte
+
+
+SELECT *
+FROM LOS_CAPOS.AUTOPARTES	*/
+/*
+SELECT * -- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< EL SELECT QUE VA
+FROM gd_esquema.Maestra
+WHERE COMPRA_NRO IS NOT NULL --and FACTURA_NRO IS NULL
+AND AUTO_PARTE_CODIGO IS NULL
+--order by COMPRA_NRO*/
+
+--> --> --> FINAL DE ITEMS COMPRAS <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- 
+
+
+/******************** VENTAS *************************/
+
+--CLIENTES VENTAS
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_clientes_Ventas') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_clientes_Ventas
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_clientes_Ventas AS
+INSERT INTO LOS_CAPOS.CLIENTES_VENTAS(cliente_v_apellido, cliente_v_nombre, cliente_v_direccion, cliente_v_dni, cliente_v_fecha_nac, cliente_v_mail)
+SELECT m.FAC_CLIENTE_APELLIDO, m.FAC_CLIENTE_NOMBRE, m.FAC_CLIENTE_DIRECCION, m.FAC_CLIENTE_DNI, m.FAC_CLIENTE_FECHA_NAC, m.FAC_CLIENTE_MAIL
+FROM gd_esquema.Maestra m
+WHERE m.FAC_CLIENTE_APELLIDO IS NOT NULL
+GO
+EXEC LOS_CAPOS.importar_clientes_Ventas
+--SELECT *
+--FROM LOS_CAPOS.CLIENTES_VENTAS
+
+-----------FACTURAS
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_facturas') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_facturas
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_facturas AS
+INSERT INTO LOS_CAPOS.FACTURAS(factura_nro, factura_fecha, fac_cliente_apellido, fac_cliente_nombre, fac_cliente_direccion,
+								 fac_cliente_dni, fac_cliente_fecha_nac, fac_cliente_mail, fac_sucursal_direccion, fac_sucursal_mail,
+								 fac_sucursal_telefono, fac_sucursal_ciudad)
+SELECT DISTINCT(m.factura_nro), m.factura_fecha, m.fac_cliente_apellido, m.fac_cliente_nombre, m.fac_cliente_direccion,
+								 m.fac_cliente_dni, m.fac_cliente_fecha_nac, m.fac_cliente_mail, m.fac_sucursal_direccion, m.fac_sucursal_mail,
+								 m.fac_sucursal_telefono, m.fac_sucursal_ciudad
+FROM gd_esquema.Maestra m
+WHERE m.FAC_CLIENTE_APELLIDO IS NOT NULL
+GO
+EXEC LOS_CAPOS.importar_facturas
+--SELECT *
+--FROM LOS_CAPOS.FACTURAS
+
+-------- ITEM_FACTURAS
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_items_facturas') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_items_facturas
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_items_facturas AS
+INSERT INTO LOS_CAPOS.ITEMS_FACTURAS(precio_total_facturado, cant_facturada, id_autoparte)
+SELECT PRECIO_FACTURADO, CANT_FACTURADA, id_autoparte
+FROM (SELECT M.PRECIO_FACTURADO, M.CANT_FACTURADA, LCAP.id_autoparte
+	  FROM gd_esquema.Maestra M
+	  LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON LCAP.autoparte_codigo = M.AUTO_PARTE_CODIGO
+	  WHERE FACTURA_NRO IS NOT NULL) AS enM
+--WHERE m.PRECIO_FACTURADO IS NOT NULL AND m.CANT_FACTURADA IS NOT NULL
+GO
+EXEC LOS_CAPOS.importar_items_facturas
+
 -- PARA VER QUE SE LLENEN - DESPUES HAY QUE BORRAR
 /*
 select * from LOS_CAPOS.CAJAS
@@ -441,4 +523,8 @@ select * from LOS_CAPOS.modelos
 select * from LOS_CAPOS.AUTOPARTES
 select * from LOS_CAPOS.CLIENTES_COMPRAS
 select * from LOS_CAPOS.COMPRAS
+select * from LOS_CAPOS.ITEMS_COMPRAS
+select * from LOS_CAPOS.clientes_ventas
+SELECT * FROM LOS_CAPOS.Facturas
+SELECT * FROM LOS_CAPOS.Items_Facturas
 */

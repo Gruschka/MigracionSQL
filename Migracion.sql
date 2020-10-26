@@ -23,7 +23,7 @@ GO
 ORDEN:
 TABLAS -> INDICES  -> VISTAS  -> FUNCIONES  -> SP  ->TRIGGERS  -> LLENADO DE TABLAS  -> (CREACION DE INDICES?)
 PARA SABER LAS FKS DE UNA TABLA:
-EXEC sp_fkeys 'AUTOPARTES'
+EXEC sp_fkeys 'LOS_CAPOS.MODELOS'
 */
 
 /************** CREACION DE TABLAS **************/
@@ -43,6 +43,18 @@ CREATE TABLE LOS_CAPOS.CLIENTES_VENTAS (
 	id_factura int
 );
 
+IF OBJECT_ID('LOS_CAPOS.ITEMS_FACTURAS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.ITEMS_FACTURAS;
+CREATE TABLE LOS_CAPOS.ITEMS_FACTURAS (
+	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	precio_unitario_facturado decimal(18,0),
+	precio_total_facturado decimal(18,0),
+	cant_facturada decimal(18,0),
+	id_factura int,
+	id_autoparte int,
+	id_auto int
+);
+
 IF OBJECT_ID('LOS_CAPOS.FACTURAS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.FACTURAS;
 CREATE TABLE LOS_CAPOS.FACTURAS (
@@ -59,36 +71,34 @@ CREATE TABLE LOS_CAPOS.FACTURAS (
 	fac_sucursal_mail nvarchar(255),
 	fac_sucursal_telefono decimal(18,0),
 	fac_sucursal_ciudad nvarchar(255),
-	id_item_factura int
-);
-
-IF OBJECT_ID('LOS_CAPOS.ITEMS_FACTURAS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.ITEMS_FACTURAS;
-CREATE TABLE LOS_CAPOS.ITEMS_FACTURAS (
-	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	precio_unitario_facturado decimal(18,0),
-	precio_total_facturado decimal(18,0),
-	cant_facturada decimal(18,0),
-	id_autoparte int,
-	id_auto int
 );
 
 IF OBJECT_ID('LOS_CAPOS.AUTOS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.AUTOS;
 CREATE TABLE LOS_CAPOS.AUTOS (
 	id_auto INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	tipo_motor_codigo decimal(18,0),
 	auto_nro_chasis nvarchar(255),
 	auto_nro_motor nvarchar(255),
 	auto_patente nvarchar(255),
 	auto_fecha_alta datetime2(3),
 	auto_cant_kms decimal(18,0),
 	en_stock bit,
+	id_modelo int,
 	id_motor int,
 	id_caja int,
 	id_transmision int,
 	id_tipo_auto int
 );
+/*
+IF OBJECT_ID('LOS_CAPOS.MODELOS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.MODELOS;
+CREATE TABLE LOS_CAPOS.MODELOS (
+	id_modelo INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	modelo_codigo decimal(18,0),
+	modelo_nombre nvarchar(255),
+	modelo_potencia decimal(18,0),
+	fabricante_nombre nvarchar(255)
+);*/
 
 /* Ojo, Los motores no tienen desc, es una columna que creamos nosotros como parte de nuestro nuevo modelo*/
 IF OBJECT_ID('LOS_CAPOS.MOTORES', 'U') IS NOT NULL
@@ -107,15 +117,6 @@ CREATE TABLE LOS_CAPOS.CAJAS (
 	tipo_caja_desc nvarchar(255),
 );
 
-IF OBJECT_ID('LOS_CAPOS.CAJAS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.CAJAS;
-CREATE TABLE LOS_CAPOS.CAJAS (
-	id_caja INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	tipo_caja_codigo decimal(18,0),
-	tipo_caja_desc nvarchar(255),
-);
-
- 
 IF OBJECT_ID('LOS_CAPOS.TRANSMISIONES', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.TRANSMISIONES;
 CREATE TABLE LOS_CAPOS.TRANSMISIONES (
@@ -123,6 +124,7 @@ CREATE TABLE LOS_CAPOS.TRANSMISIONES (
 	tipo_transmision_codigo decimal(18,0),
 	tipo_transmision_desc nvarchar(255),
 );
+
 
 IF OBJECT_ID('LOS_CAPOS.TIPOS_AUTOS', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.TIPOS_AUTOS;
@@ -158,8 +160,8 @@ IF OBJECT_ID('LOS_CAPOS.ITEMS_COMPRAS', 'U') IS NOT NULL
 CREATE TABLE LOS_CAPOS.ITEMS_COMPRAS (
 	id_item INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	compra_cant decimal(18,0),
-	compra_precio_unitario decimal(18,0),
-	compra_precio_total decimal(18,0),
+	compra_precio_unitario decimal(18,2),
+	compra_precio_total decimal(18,2),
 	id_autoparte int,
 	id_auto int,
 	id_compras int
@@ -199,24 +201,25 @@ CREATE TABLE LOS_CAPOS.SUCURSALES (
 
 
 /** AGREGAMOS FKs**/
-ALTER TABLE LOS_CAPOS.AUTOS
- 	ADD FOREIGN KEY (id_motor) REFERENCES LOS_CAPOS.MOTORES(id_motor),
-     	FOREIGN KEY (id_caja) REFERENCES LOS_CAPOS.CAJAS(id_caja),
-     	FOREIGN KEY (id_transmision) REFERENCES LOS_CAPOS.TRANSMISIONES(id_transmision),
-     	FOREIGN KEY (id_tipo_auto) REFERENCES LOS_CAPOS.TIPOS_AUTOS(id_tipo_auto)
 
 ALTER TABLE LOS_CAPOS.AUTOPARTES
 	ADD FOREIGN KEY (id_modelo) REFERENCES LOS_CAPOS.MODELOS(id_modelo)
 
+ALTER TABLE LOS_CAPOS.AUTOS
+ 	ADD 
+		FOREIGN KEY (id_motor) REFERENCES LOS_CAPOS.MOTORES(id_motor),
+     	FOREIGN KEY (id_caja) REFERENCES LOS_CAPOS.CAJAS(id_caja),
+     	FOREIGN KEY (id_transmision) REFERENCES LOS_CAPOS.TRANSMISIONES(id_transmision),
+     	FOREIGN KEY (id_tipo_auto) REFERENCES LOS_CAPOS.TIPOS_AUTOS(id_tipo_auto),
+		FOREIGN KEY (id_modelo) REFERENCES LOS_CAPOS.MODELOS(id_modelo)
+		
 ALTER TABLE LOS_CAPOS.CLIENTES_VENTAS
 	ADD FOREIGN KEY (id_factura) REFERENCES  LOS_CAPOS.FACTURAS(id_factura)
 
-ALTER TABLE LOS_CAPOS.FACTURAS
-	ADD FOREIGN KEY (id_item_factura) REFERENCES  LOS_CAPOS.ITEMS_FACTURAS(id_item)
-
 ALTER TABLE LOS_CAPOS.ITEMS_FACTURAS
 	ADD FOREIGN KEY (id_autoparte) REFERENCES LOS_CAPOS.AUTOPARTES(id_autoparte),
-    	FOREIGN KEY (id_auto) REFERENCES LOS_CAPOS.AUTOS(id_auto)
+    	FOREIGN KEY (id_auto) REFERENCES LOS_CAPOS.AUTOS(id_auto),
+		FOREIGN KEY (id_factura) REFERENCES LOS_CAPOS.FACTURAS(id_factura)
 
 ALTER TABLE LOS_CAPOS.COMPRAS
 	ADD FOREIGN KEY (id_sucursal) REFERENCES LOS_CAPOS.SUCURSALES(id_sucursal),
@@ -310,6 +313,34 @@ WHERE auto_parte_codigo IS NOT NULL;
 GO
 
 EXEC LOS_CAPOS.importar_autopartes
+GO
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_autos') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_autos
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_autos AS
+INSERT INTO LOS_CAPOS.AUTOS(auto_nro_chasis, auto_nro_motor, auto_patente, auto_fecha_alta, auto_cant_kms, id_modelo, id_motor, id_caja, id_transmision, id_tipo_auto)
+SELECT DISTINCT AUTO_NRO_CHASIS, AUTO_NRO_MOTOR, auto_patente, auto_fecha_alta, auto_cant_kms, id_modelo, id_motor, id_caja, id_transmision, id_tipo_auto
+FROM (SELECT DISTINCT m.AUTO_NRO_CHASIS, m.AUTO_NRO_MOTOR, m.auto_patente, m.auto_fecha_alta, m.auto_cant_kms
+		, LCMOD.id_modelo, LCMOT.id_motor, LCCJ.id_caja, LCTR.id_transmision, LCTA.id_tipo_auto
+	  FROM gd_esquema.Maestra m
+	  INNER JOIN LOS_CAPOS.MODELOS LCMOD ON LCMOD.modelo_codigo = m.MODELO_CODIGO
+	  INNER JOIN LOS_CAPOS.MOTORES LCMOT ON LCMOT.tipo_motor_codigo = m.TIPO_MOTOR_CODIGO
+	  INNER JOIN LOS_CAPOS.CAJAS LCCJ ON LCCJ.tipo_caja_codigo = m.TIPO_CAJA_CODIGO
+	  INNER JOIN LOS_CAPOS.TRANSMISIONES LCTR ON LCTR.tipo_transmision_codigo = m.TIPO_TRANSMISION_CODIGO
+	  INNER JOIN LOS_CAPOS.TIPOS_AUTOS LCTA ON LCTA.tipo_auto_codigo = m.TIPO_AUTO_CODIGO
+	  WHERE m.AUTO_NRO_CHASIS IS NOT NULL 
+	  AND m.AUTO_NRO_MOTOR IS NOT NULL 
+	  AND m.AUTO_PATENTE IS NOT NULL
+	  ) AS enM
+GO
+EXEC LOS_CAPOS.importar_autos
+GO
+--SELECT distinct auto_nro_motor FROM LOS_CAPOS.AUTOS
+--SELECT * FROM LOS_CAPOS.AUTOS
+--drop table LOS_CAPOS.AUTOS
 
 IF OBJECT_ID('tempdb..#Modelos_de_Autopartes') IS NOT NULL 
     DROP TABLE #Modelos_de_Autopartes 
@@ -413,23 +444,26 @@ GO
 
 --> --> -->  ITEMS COMPRAS <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <--
 
-IF EXISTS ( SELECT *  FROM   sysobjects 
+IF EXISTS (SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.importar_items_compras') 
 					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
 	DROP PROCEDURE LOS_CAPOS.importar_items_compras
 GO
 CREATE PROCEDURE LOS_CAPOS.importar_items_compras AS
-INSERT INTO LOS_CAPOS.ITEMS_COMPRAS(compra_cant, compra_precio_unitario, compra_precio_total, id_compras, id_autoparte)
-SELECT COMPRA_CANT, COMPRA_PRECIO, COMPRA_PRECIO, id_compras, id_autoparte
-FROM (SELECT m.COMPRA_NRO, m.COMPRA_CANT, m.COMPRA_PRECIO, LCC.id_compras, LCAP.id_autoparte
+INSERT INTO LOS_CAPOS.ITEMS_COMPRAS(compra_cant, compra_precio_unitario, compra_precio_total, id_compras, id_autoparte, id_auto)
+SELECT COMPRA_CANT, COMPRA_PRECIO, COMPRA_PRECIO, id_compras, id_autoparte, id_auto
+FROM (SELECT m.COMPRA_NRO, m.COMPRA_CANT, m.COMPRA_PRECIO, LCC.id_compras, LCAP.id_autoparte, LCA.id_auto
 	  FROM gd_esquema.Maestra m
 		INNER JOIN LOS_CAPOS.COMPRAS LCC ON m.COMPRA_NRO = LCC.compra_nro
-		LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON m.AUTO_PARTE_CODIGO = LCAP.autoparte_codigo
-	  WHERE m.COMPRA_NRO IS NOT NULL
+		LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON m.AUTO_PARTE_CODIGO = LCAP.autoparte_codigo		
+		LEFT JOIN LOS_CAPOS.AUTOS LCA ON LCA.auto_patente = M.AUTO_PATENTE
+			AND LCA.auto_nro_motor = M.AUTO_NRO_MOTOR
+			AND LCA.auto_nro_chasis =M.AUTO_NRO_CHASIS
+	  WHERE m.COMPRA_NRO IS NOT NULL AND m.PRECIO_FACTURADO IS NULL
 	  ) AS enM
 GO
 EXEC LOS_CAPOS.importar_items_compras
-
+--SELECT * FROM LOS_CAPOS.ITEMS_COMPRAS
 
 /*
 
@@ -445,13 +479,14 @@ FROM LOS_CAPOS.ITEMS_COMPRAS IC
 INNER JOIN LOS_CAPOS.AUTOPARTES AP ON IC.id_autoparte = AP.id_autoparte
 
 
+
 SELECT *
 FROM LOS_CAPOS.AUTOPARTES	*/
 /*
 SELECT * -- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< EL SELECT QUE VA
 FROM gd_esquema.Maestra
-WHERE COMPRA_NRO IS NOT NULL --and FACTURA_NRO IS NULL
-AND AUTO_PARTE_CODIGO IS NULL
+WHERE COMPRA_NRO IS NOT NULL and COMPRA_PRECIO = 3858303.25
+
 --order by COMPRA_NRO*/
 
 --> --> --> FINAL DE ITEMS COMPRAS <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- <-- 
@@ -503,15 +538,31 @@ IF EXISTS ( SELECT *  FROM   sysobjects
 	DROP PROCEDURE LOS_CAPOS.importar_items_facturas
 GO
 CREATE PROCEDURE LOS_CAPOS.importar_items_facturas AS
-INSERT INTO LOS_CAPOS.ITEMS_FACTURAS(precio_total_facturado, cant_facturada, id_autoparte)
-SELECT PRECIO_FACTURADO, CANT_FACTURADA, id_autoparte
-FROM (SELECT M.PRECIO_FACTURADO, M.CANT_FACTURADA, LCAP.id_autoparte
+INSERT INTO LOS_CAPOS.ITEMS_FACTURAS(precio_total_facturado, cant_facturada, id_autoparte, id_auto, id_factura)
+SELECT PRECIO_FACTURADO, CANT_FACTURADA, id_autoparte, id_auto, id_factura
+FROM (SELECT M.PRECIO_FACTURADO, M.CANT_FACTURADA, LCAP.id_autoparte, LCA.id_auto, FACT.id_factura
 	  FROM gd_esquema.Maestra M
 	  LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON LCAP.autoparte_codigo = M.AUTO_PARTE_CODIGO
-	  WHERE FACTURA_NRO IS NOT NULL) AS enM
+	  LEFT JOIN LOS_CAPOS.AUTOS LCA ON LCA.auto_patente = M.AUTO_PATENTE
+		AND LCA.auto_nro_motor = M.AUTO_NRO_MOTOR
+		AND LCA.auto_nro_chasis =M.AUTO_NRO_CHASIS
+	  right join LOS_CAPOS.FACTURAS FACT ON FACT.factura_nro = m.FACTURA_NRO	
+	  WHERE M.FACTURA_NRO IS NOT NULL) AS enM
 --WHERE m.PRECIO_FACTURADO IS NOT NULL AND m.CANT_FACTURADA IS NOT NULL
 GO
+
 EXEC LOS_CAPOS.importar_items_facturas
+GO
+
+
+/*
+SELECT *
+FROM gd_esquema.Maestra M
+LEFT JOIN LOS_CAPOS.AUTOPARTES LCAP ON LCAP.autoparte_codigo = M.AUTO_PARTE_CODIGO
+LEFT JOIN LOS_CAPOS.AUTOS LCA ON LCA.auto_patente = M.AUTO_PATENTE
+		AND LCA.auto_nro_motor = M.AUTO_NRO_MOTOR
+		AND LCA.auto_nro_chasis =M.AUTO_NRO_CHASIS
+WHERE FACTURA_NRO IS NOT NULL*/
 
 -- PARA VER QUE SE LLENEN - DESPUES HAY QUE BORRAR
 /*
@@ -520,11 +571,13 @@ select * from LOS_CAPOS.motores
 select * from LOS_CAPOS.transmisiones
 select * from LOS_CAPOS.tipos_autos
 select * from LOS_CAPOS.modelos
-select * from LOS_CAPOS.AUTOPARTES
+select * from LOS_CAPOS.AUTOS
 select * from LOS_CAPOS.CLIENTES_COMPRAS
 select * from LOS_CAPOS.COMPRAS
 select * from LOS_CAPOS.ITEMS_COMPRAS
 select * from LOS_CAPOS.clientes_ventas
 SELECT * FROM LOS_CAPOS.Facturas
-SELECT * FROM LOS_CAPOS.Items_Facturas
+SELECT * FROM LOS_CAPOS.ITEMS_Facturas
 */
+
+/* HACER ALGO CON PRECIO UNITARIO DE LAS COMPRAS */

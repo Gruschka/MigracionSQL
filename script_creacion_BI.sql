@@ -1,26 +1,24 @@
 USE GD2C2020
 GO
 
-/*Tiempo (año y mes) <-- DE ACÁ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACIÓN POR MES
-
+/*Tiempo (aÃ±o y mes) <-- DE ACÃ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACIÃ“N POR MES
 Cliente (edad, sexo)
-Edad: 18 - 30 años / 31 – 50 años / > 50 años
+Edad: 18 - 30 aÃ±os / 31 â€“ 50 aÃ±os / > 50 aÃ±os
 Sexo: F / M / NULL
 SE DESPRENDEN 3*3 = 9 REGISTROS
-
-Sobre estas dimensiones se deberán realizar una serie de VISTAS que deberán <-- DICE ESPECIFICAMENTE VISTAS
-proveer, en forma simple desde consultas directas la siguiente información:
-Automóviles:
-o Cantidad de automóviles, vendidos y comprados x sucursal y mes
-o Precio promedio de automóviles, vendidos y comprados.
-o Ganancias (precio de venta – precio de compra) x Sucursal x mes
-o Promedio de tiempo en stock de cada modelo de automóvil.
+Sobre estas dimensiones se deberÃ¡n realizar una serie de VISTAS que deberÃ¡n <-- DICE ESPECIFICAMENTE VISTAS
+proveer, en forma simple desde consultas directas la siguiente informaciÃ³n:
+AutomÃ³viles:
+o Cantidad de automÃ³viles, vendidos y comprados x sucursal y mes
+o Precio promedio de automÃ³viles, vendidos y comprados.
+o Ganancias (precio de venta â€“ precio de compra) x Sucursal x mes
+o Promedio de tiempo en stock de cada modelo de automÃ³vil.
 o
 Autopartes
 o Precio promedio de cada autoparte, vendida y comprada.
-o Ganancias (precio de venta – precio de compra) x Sucursal x mes
+o Ganancias (precio de venta â€“ precio de compra) x Sucursal x mes
 o Promedio de tiempo en stock de cada autoparte.
-o Máxima cantidad de stock por cada sucursal (anual)
+o MÃ¡xima cantidad de stock por cada sucursal (anual)
 */
 
 /* TIPS:
@@ -41,12 +39,12 @@ IF OBJECT_ID('LOS_CAPOS.BI_TIEMPO', 'U') IS NOT NULL
 CREATE TABLE LOS_CAPOS.BI_TIEMPO (
 	id_tiempo INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	tiempo_mes nvarchar(255),
-	tiempo_bimestre nvarchar(255),
+	/*tiempo_bimestre nvarchar(255),
 	tiempo_trimestre nvarchar(255),
 	tiempo_cuatrimestre nvarchar(255),
-	tiempo_semestre nvarchar(255),
+	tiempo_semestre nvarchar(255),*/
 	tiempo_anio nvarchar(255),
-	tiempo_quinquenio nvarchar(255)
+	/*tiempo_quinquenio nvarchar(255)*/
 );
 
 /**** DIMENSION CLIENTES *****/
@@ -105,7 +103,7 @@ CREATE TABLE LOS_CAPOS.BI_DIMENSION_SUCURSAL (
 /*********************************** IMPORT FUNCTIONS ***********************************/
 
 
-/**** IMPORTAR CLIENTES *****/
+/************** IMPORTAR CLIENTES COMPRAS **************/
 IF EXISTS ( SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.spImportarBIClientes_c') 
 					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
@@ -122,6 +120,35 @@ GO
 EXEC LOS_CAPOS.spImportarBIClientes_c
 GO
 
+/************** IMPORTAR TIEMPO **************/
+
+IF OBJECT_ID ('tempdb..#FECHA_OPERACIONES') IS NOT NULL
+	DROP TABLE #FECHA_OPERACIONES
+SELECT * INTO #FECHA_OPERACIONES FROM(
+SELECT DISTINCT
+DATEADD(MONTH, DATEDIFF(MONTH, 0, compra_fecha), 0) AS fecha_operacion
+FROM LOS_CAPOS.COMPRAS
+UNION
+SELECT DISTINCT
+DATEADD(MONTH, DATEDIFF(MONTH, 0, factura_fecha), 0) AS fecha_operacion
+FROM  LOS_CAPOS.Facturas
+) AS FECHAS
+GO
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_tiempo') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_tiempo
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_tiempo AS
+INSERT INTO LOS_CAPOS.BI_TIEMPO (tiempo_mes, tiempo_anio)
+SELECT MONTH(fecha_operacion), YEAR(fecha_operacion)
+FROM  #FECHA_OPERACIONES
+GO
+
+EXEC LOS_CAPOS.importar_tiempo
+GO
+
+--SELECT * FROM LOS_CAPOS.BI_TIEMPO
 
 /**** IMPORTAR AUTOS*****/
 
@@ -177,7 +204,7 @@ GO
 
 
 /**** IMPORTAR AUTOPARTES *****/
-select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
+--select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
 
 IF EXISTS ( SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.spImportarAutopartes') 
@@ -219,7 +246,7 @@ GO
 EXEC LOS_CAPOS.spImportarSucursales
 GO
 
-select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
+--select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
 
 --SELECT DATEDIFF(year, '2017/08/25', '2011/08/25') AS DateDiff;
 

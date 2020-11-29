@@ -1,26 +1,24 @@
 USE GD2C2020
 GO
 
-/*Tiempo (aÒo y mes) <-- DE AC¡ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACI”N POR MES
-
+/*Tiempo (a√±o y mes) <-- DE AC√Å SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACI√ìN POR MES
 Cliente (edad, sexo)
-Edad: 18 - 30 aÒos / 31 ñ 50 aÒos / > 50 aÒos
+Edad: 18 - 30 a√±os / 31 ‚Äì 50 a√±os / > 50 a√±os
 Sexo: F / M / NULL
 SE DESPRENDEN 3*3 = 9 REGISTROS
-
-Sobre estas dimensiones se deber·n realizar una serie de VISTAS que deber·n <-- DICE ESPECIFICAMENTE VISTAS
-proveer, en forma simple desde consultas directas la siguiente informaciÛn:
-AutomÛviles:
-o Cantidad de automÛviles, vendidos y comprados x sucursal y mes
-o Precio promedio de automÛviles, vendidos y comprados.
-o Ganancias (precio de venta ñ precio de compra) x Sucursal x mes
-o Promedio de tiempo en stock de cada modelo de automÛvil.
+Sobre estas dimensiones se deber√°n realizar una serie de VISTAS que deber√°n <-- DICE ESPECIFICAMENTE VISTAS
+proveer, en forma simple desde consultas directas la siguiente informaci√≥n:
+Autom√≥viles:
+o Cantidad de autom√≥viles, vendidos y comprados x sucursal y mes
+o Precio promedio de autom√≥viles, vendidos y comprados.
+o Ganancias (precio de venta ‚Äì precio de compra) x Sucursal x mes
+o Promedio de tiempo en stock de cada modelo de autom√≥vil.
 o
 Autopartes
 o Precio promedio de cada autoparte, vendida y comprada.
-o Ganancias (precio de venta ñ precio de compra) x Sucursal x mes
+o Ganancias (precio de venta ‚Äì precio de compra) x Sucursal x mes
 o Promedio de tiempo en stock de cada autoparte.
-o M·xima cantidad de stock por cada sucursal (anual)
+o M√°xima cantidad de stock por cada sucursal (anual)
 */
 
 /* TIPS:
@@ -32,20 +30,6 @@ EXEC sp_fkeys 'AUTOPARTES'
 
 /*********************************** CREACION DE TABLAS ***********************************/
 
-/*********************************** HECHOS ***********************************/
-
-/**** HECHOS COMPRAS AUTOS *****/
-
-IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
-CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
-	id_tiempo INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
-	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
-	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
-	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
-	PRIMARY KEY( id_tiempo, id_sucursal, id_auto, id_cliente_compra ),
-);
-
 /*********************************** DIMENSIONES ***********************************/
 
 /**** DIMENSION TIEMPO *****/
@@ -55,23 +39,32 @@ IF OBJECT_ID('LOS_CAPOS.BI_TIEMPO', 'U') IS NOT NULL
 CREATE TABLE LOS_CAPOS.BI_TIEMPO (
 	id_tiempo INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	tiempo_mes nvarchar(255),
-	tiempo_bimestre nvarchar(255),
+	/*tiempo_bimestre nvarchar(255),
 	tiempo_trimestre nvarchar(255),
 	tiempo_cuatrimestre nvarchar(255),
-	tiempo_semestre nvarchar(255),
+	tiempo_semestre nvarchar(255),*/
 	tiempo_anio nvarchar(255),
-	tiempo_quinquenio nvarchar(255)
+	/*tiempo_quinquenio nvarchar(255)*/
 );
 
-/**** DIMENSION CLIENTES *****/
+/**** DIMENSION CLIENTES CPRAS *****/
 
 IF OBJECT_ID('LOS_CAPOS.BI_CLIENTES_C', 'U') IS NOT NULL
   DROP TABLE LOS_CAPOS.BI_CLIENTES_C;
 CREATE TABLE LOS_CAPOS.BI_CLIENTES_C (
 	id_cliente INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	cliente_sexo nvarchar(255),
-	cliente_edad int,
-	cliente_edad_franja nvarchar(255)
+	cliente_franja_edad nvarchar(255)
+);
+
+/**** DIMENSION CLIENTES VTAS *****/
+
+IF OBJECT_ID('LOS_CAPOS.BI_CLIENTES_V', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.BI_CLIENTES_V;
+CREATE TABLE LOS_CAPOS.BI_CLIENTES_V (
+	id_cliente INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	cliente_sexo nvarchar(255),
+	cliente_franja_edad nvarchar(255)
 );
 
 /**** DIMENSION AUTOS*****/
@@ -116,26 +109,128 @@ CREATE TABLE LOS_CAPOS.BI_DIMENSION_SUCURSAL (
 	sucursal_ciudad nvarchar(255),
 );
 
+
+/*********************************** HECHOS ***********************************/
+
+/**** HECHOS COMPRAS AUTOS *****/
+
+IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
+CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
+	id_tiempo INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
+	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
+	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
+	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
+	PRIMARY KEY( id_tiempo, id_sucursal, id_auto, id_cliente_compra ),
+);
+
+/**** HECHOS COMPRAS AUTOS *****/
+
+IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
+CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
+	id_tiempo INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
+	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
+	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
+	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
+	PRIMARY KEY( id_tiempo, id_sucursal, id_auto, id_cliente_compra ),
+);
+
 /*********************************** IMPORT FUNCTIONS ***********************************/
 
 
-/**** IMPORTAR CLIENTES *****/
+/************** IMPORTAR CLIENTES COMPRAS **************/
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.calcularFranjaEdad') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 0 )
+	DROP FUNCTION LOS_CAPOS.calcularFranjaEdad
+GO
+CREATE FUNCTION LOS_CAPOS.calcularFranjaEdad(@edad decimal) RETURNS nvarchar(255) AS BEGIN
+	IF (@edad >= 18 AND @edad <= 30) 
+		RETURN '18 - 30 a√±os'
+	
+	IF (@edad >= 31 AND @edad <= 50) 
+		RETURN '31- 50 a√±os'
+	
+	IF (@edad > 50) 
+	RETURN 'mayoes de 50 a√±os'
+
+	RETURN '-'
+END
+GO
+
 IF EXISTS ( SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.spImportarBIClientes_c') 
 					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
 	DROP PROCEDURE LOS_CAPOS.spImportarBIClientes_c
 GO
 CREATE PROCEDURE LOS_CAPOS.spImportarBIClientes_c AS
-INSERT INTO LOS_CAPOS.BI_CLIENTES_C (cliente_edad/*, cliente_edad_franja*/)
+INSERT INTO LOS_CAPOS.BI_CLIENTES_C (cliente_franja_edad)
 		
-	SELECT DATEDIFF(year, CC.cliente_fecha_nac, GETDATE()) AS cliente_edad
-	FROM (SELECT DISTINCT cliente_fecha_nac FROM LOS_CAPOS.CLIENTES_COMPRAS) AS CC
+	SELECT DISTINCT LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, CC.cliente_fecha_nac, GETDATE()))
+	FROM (SELECT cliente_fecha_nac FROM LOS_CAPOS.CLIENTES_COMPRAS) AS CC
 	;
 GO
 
 EXEC LOS_CAPOS.spImportarBIClientes_c
 GO
+--SELECT * FROM LOS_CAPOS.BI_CLIENTES_C
 
+/************** CLIENTES VENTAS **************/
+
+IF EXISTS ( SELECT *  FROM   sysobjects
+            WHERE  id = object_id(N'LOS_CAPOS.spImportarBIClientes_V') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.spImportarBIClientes_V
+GO
+CREATE PROCEDURE LOS_CAPOS.spImportarBIClientes_V AS
+INSERT INTO LOS_CAPOS.BI_CLIENTES_V (cliente_franja_edad)
+	
+	SELECT DISTINCT LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, CV.cliente_v_fecha_nac, GETDATE()))
+	FROM (SELECT cliente_v_fecha_nac FROM LOS_CAPOS.CLIENTES_VENTAS) AS CV
+	;
+GO
+
+EXEC LOS_CAPOS.spImportarBIClientes_V
+GO
+
+/*
+select * from LOS_CAPOS.clientes_ventas
+SELECT * FROM LOS_CAPOS.Facturas
+SELECT * FROM LOS_CAPOS.BI_CLIENTES_V
+ORDER BY CLIENTE_EDAD
+*/
+
+/************** IMPORTAR TIEMPO **************/
+
+IF OBJECT_ID ('tempdb..#FECHA_OPERACIONES') IS NOT NULL
+	DROP TABLE #FECHA_OPERACIONES
+SELECT * INTO #FECHA_OPERACIONES FROM(
+SELECT DISTINCT
+DATEADD(MONTH, DATEDIFF(MONTH, 0, compra_fecha), 0) AS fecha_operacion
+FROM LOS_CAPOS.COMPRAS
+UNION
+SELECT DISTINCT
+DATEADD(MONTH, DATEDIFF(MONTH, 0, factura_fecha), 0) AS fecha_operacion
+FROM  LOS_CAPOS.Facturas
+) AS FECHAS
+GO
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.importar_tiempo') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.importar_tiempo
+GO
+CREATE PROCEDURE LOS_CAPOS.importar_tiempo AS
+INSERT INTO LOS_CAPOS.BI_TIEMPO (tiempo_mes, tiempo_anio)
+SELECT MONTH(fecha_operacion), YEAR(fecha_operacion)
+FROM  #FECHA_OPERACIONES
+GO
+
+EXEC LOS_CAPOS.importar_tiempo
+GO
+
+--SELECT * FROM LOS_CAPOS.BI_TIEMPO
 
 /**** IMPORTAR AUTOS*****/
 
@@ -191,7 +286,7 @@ GO
 
 
 /**** IMPORTAR AUTOPARTES *****/
-select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
+--select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
 
 IF EXISTS ( SELECT *  FROM   sysobjects 
             WHERE  id = object_id(N'LOS_CAPOS.spImportarAutopartes') 
@@ -233,7 +328,7 @@ GO
 EXEC LOS_CAPOS.spImportarSucursales
 GO
 
-select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
+--select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
 
 --SELECT DATEDIFF(year, '2017/08/25', '2011/08/25') AS DateDiff;
 

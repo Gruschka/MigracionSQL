@@ -272,6 +272,8 @@ INSERT INTO LOS_CAPOS.BI_DIMENSION_AUTOS (tipo_motor_desc,
 	JOIN LOS_CAPOS.MOTORES m ON (a.id_motor = m.id_motor)
 	JOIN LOS_CAPOS.TIPOS_AUTOS ta ON (a.id_tipo_auto = ta.id_tipo_auto)
 	JOIN LOS_CAPOS.MODELOS md ON (a.id_modelo = md.id_modelo)
+	GROUP BY m.tipo_motor_desc, t.tipo_transmision_desc, c.tipo_caja_desc, ta.tipo_auto_desc, md.fabricante_nombre, md.modelo_nombre,
+	LOS_CAPOS.calcularPotencia(md.modelo_potencia)
 	;
 GO
 
@@ -341,18 +343,35 @@ FROM LOS_CAPOS.ITEMS_COMPRAS item
 INNER JOIN LOS_CAPOS.COMPRAS compras ON (compras.id_compras = item.id_compras)
 INNER JOIN LOS_CAPOS.CLIENTES_COMPRAS cliente_compra ON (cliente_compra.id_clientes_compras = compras.id_clientes_compras)
 INNER JOIN LOS_CAPOS.SUCURSALES suc ON (compras.id_sucursal = suc.id_sucursal)
-INNER JOIN LOS_CAPOS.AUTOS auto ON (auto.id_auto = item.id_auto)
-INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = auto.id_modelo)
+INNER JOIN LOS_CAPOS.AUTOS autos ON (autos.id_auto = item.id_auto)
+INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
 --JOINEO CON LAS DIMENSIONES
 INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
 INNER JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, cliente_compra.cliente_fecha_nac, GETDATE())))
 INNER JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
-WHERE item.id_auto IS NOT NULL
 
-SELECT DISTINCT id_sucursal, id_auto, id_cliente_compra FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
-GROUP BY id_sucursal, id_auto, id_cliente_compra
-ORDER BY id_auto
-select * from LOS_CAPOS.ITEMS_COMPRAS WHERE id_auto IS NOT NULL
+
+/*
+SELECT *
+FROM LOS_CAPOS.AUTOS autos
+INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
+INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
+WHERE autos.id_auto = 1
+
+SELECT * FROM LOS_CAPOS.BI_DIMENSION_AUTOS
+SELECT * FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
+
+
+SELECT autos.id_auto, COUNT (*)
+FROM LOS_CAPOS.AUTOS autos
+INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
+INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
+GROUP BY autos.id_auto
+HAVING COUNT (*) > 1
+
+WHERE item.id_auto IS NOT NULL*/
+
+
 
 /*
 select * from LOS_CAPOS.CAJAS

@@ -535,15 +535,57 @@ GO
 
 -- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA
 
-IF OBJECT_ID('LOS_CAPOS.TOTAL_SUCURSAL_POR_MES', 'V') IS NOT NULL
-    DROP VIEW LOS_CAPOS.TOTAL_SUCURSAL_POR_MES;
+
+IF OBJECT_ID('LOS_CAPOS.TotalComprasDe', 'F') IS NOT NULL
+    DROP VIEW LOS_CAPOS.TotalComprasDe;
 GO
-CREATE VIEW LOS_CAPOS.TOTAL_SUCURSAL_POR_MES AS
-SELECT compra.id_sucursal, SUM(compra.compra_precio_total) AS TOTAL, t.tiempo_mes AS NUMERO_MES, T.tiempo_anio AS ANIO
-FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS compra
-JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = compra.id_tiempo)
-GROUP BY compra.id_sucursal, t.tiempo_mes, t.tiempo_anio
+CREATE FUNCTION LOS_CAPOS.TotalComprasDe(@sucursal int, @mes int, @anio int) RETURNS numeric(10) AS BEGIN
+	DECLARE @valor int = (
+		SELECT COUNT(*) 
+		FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS c 
+		JOIN LOS_CAPOS.BI_TIEMPO t ON t.id_tiempo = c.id_tiempo
+		group by id_sucursal, t.tiempo_mes, t.tiempo_anio
+		HAVING t.tiempo_mes = @mes AND t.tiempo_anio = @anio AND id_sucursal = @sucursal
+	)
+	return @valor
+END
 GO
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.TotalVentasDe') 
+					and OBJECTPROPERTY(id, N'IsFunction') = 1 )
+	DROP FUNCTION LOS_CAPOS.TotalVentasDe
+GO
+CREATE FUNCTION LOS_CAPOS.TotalVentasDe(@sucursal int, @mes int, @anio int) RETURNS numeric(10) AS BEGIN
+	DECLARE @valor int = (
+		SELECT COUNT(*) 
+		FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS v
+		JOIN LOS_CAPOS.BI_TIEMPO t ON t.id_tiempo = v.id_tiempo
+		group by id_sucursal, t.tiempo_mes, t.tiempo_anio
+		HAVING t.tiempo_mes = @mes AND t.tiempo_anio = @anio AND id_sucursal = @sucursal
+	)
+	return @valor
+END
+GO
+
+
+IF OBJECT_ID('LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES;
+GO
+CREATE VIEW LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES AS
+SELECT c.id_sucursal, t.tiempo_mes, t.tiempo_anio,
+LOS_CAPOS.TotalComprasDe(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) AS TOTAL_COMPRAS,
+LOS_CAPOS.TotalVentasDe(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) AS TOTAL_VENTAS
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS c
+JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
+GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
+GO
+
+SELECT * FROM LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES
+
+
+-- SELECT * FROM LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES
+
 
 --NOTA: Consideramos que es oportuno agregar el Anio para poder discernir los totales de un mes entre cada uno. 
 -- SELECT * FROM LOS_CAPOS.TOTAL_SUCURSAL_POR_MES

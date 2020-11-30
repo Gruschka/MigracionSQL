@@ -634,6 +634,51 @@ JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
 GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
 GO
 
+-- fecha compra y venta por id
+SELECT AVG(DATEDIFF(MONTH, c.compra_fecha, fact.factura_Fecha)) AS MESES_EN_STOCK_PROMEDIO
+FROM LOS_CAPOS.ITEMS_COMPRAS it_c
+JOIN LOS_CAPOS.COMPRAS c ON it_c.id_compras = c.id_compras
+JOIN LOS_CAPOS.AUTOS a ON a.id_auto = it_c.id_item
+JOIN LOS_CAPOS.MODELOS md ON a.id_modelo = md.id_modelo
+JOIN LOS_CAPOS.ITEMS_FACTURAS it_f ON (it_f.id_auto = a.id_auto)
+JOIN LOS_CAPOS.FACTURAS fact ON it_f.id_factura = fact.id_factura
+WHERE md.modelo_nombre = 'Superb'
+
+
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.MesesEnStockPromedioDeModelo') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION LOS_CAPOS.MesesEnStockPromedioDeModelo
+GO
+CREATE FUNCTION LOS_CAPOS.MesesEnStockPromedioDeModelo(@modelo nvarchar) RETURNS decimal AS BEGIN
+	DECLARE @valor decimal = (
+		SELECT AVG(DATEDIFF(MONTH, c.compra_fecha, fact.factura_Fecha)) AS MESES_EN_STOCK_PROMEDIO
+		FROM LOS_CAPOS.ITEMS_COMPRAS it_c
+		JOIN LOS_CAPOS.COMPRAS c ON it_c.id_compras = c.id_compras
+		JOIN LOS_CAPOS.AUTOS a ON a.id_auto = it_c.id_item
+		JOIN LOS_CAPOS.MODELOS md ON a.id_modelo = md.id_modelo
+		JOIN LOS_CAPOS.ITEMS_FACTURAS it_f ON (it_f.id_auto = a.id_auto)
+		JOIN LOS_CAPOS.FACTURAS fact ON it_f.id_factura = fact.id_factura
+		WHERE md.modelo_nombre = @modelo
+	)
+	return @valor
+END
+GO
+
+IF OBJECT_ID('LOS_CAPOS.MESES_EN_STOCK_PROMEDIO_POR_MODELO', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.MESES_EN_STOCK_PROMEDIO_POR_MODELO;
+GO
+CREATE VIEW LOS_CAPOS.MESES_EN_STOCK_PROMEDIO_POR_MODELO AS
+SELECT aut.modelo_nombre, LOS_CAPOS.MesesEnStockPromedioDeModelo(aut.modelo_nombre) AS PROMEDIO_EN_MESES
+FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS a	
+JOIN LOS_CAPOS.BI_DIMENSION_AUTOS aut ON aut.id_auto = a.id_auto
+GROUP BY aut.modelo_nombre
+GO
+
+--SELECT * FROM LOS_CAPOS.MESES_EN_STOCK_PROMEDIO_POR_MODELO
+
+
 
 -- SELECT * FROM LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES
 

@@ -118,14 +118,15 @@ CREATE TABLE LOS_CAPOS.BI_DIMENSION_SUCURSAL (
 /**** HECHOS COMPRAS AUTOS *****/
 
 CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
+	id_hecho INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
 	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
 	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
+	id_tiempo INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
 	compra_cant decimal(18,0),
 	compra_precio_unitario decimal(18,2),
-	compra_precio_total decimal(18,2),
-	id_hecho INT NOT NULL IDENTITY(1,1)
-PRIMARY KEY,
+	compra_precio_total decimal(18,2),	
+
 	--PRIMARY KEY(  id_sucursal, id_auto, id_cliente_compra ) ,
 );
 
@@ -329,11 +330,12 @@ GO
 
 
 INSERT INTO LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
-(  id_auto, id_cliente_compra, id_sucursal, compra_cant, compra_precio_unitario, compra_precio_total)
+(  id_auto, id_cliente_compra, id_sucursal, id_tiempo, compra_cant, compra_precio_unitario, compra_precio_total)
 SELECT
 ISNULL(dim_a.id_auto, 0),
 ISNULL(dim_cliente.id_cliente, 0),
 ISNULL(dim_suc.id_sucursal, 0),
+ISNULL(dim_t.id_tiempo, 0),
 ISNULL(item.compra_cant, 0),
 ISNULL(item.compra_precio_unitario, 0),
 ISNULL(item.compra_precio_total, 0)
@@ -349,7 +351,7 @@ INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
 INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
 INNER JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, cliente_compra.cliente_fecha_nac, GETDATE())))
 INNER JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
-
+INNER JOIN LOS_CAPOS.BI_TIEMPO dim_t ON (dim_t.tiempo_anio = YEAR(compras.compra_fecha) AND dim_t.tiempo_mes = MONTH(compras.compra_fecha))
 
 /*
 SELECT *

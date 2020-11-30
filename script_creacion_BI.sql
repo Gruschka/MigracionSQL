@@ -495,46 +495,6 @@ IF EXISTS ( SELECT *  FROM   sysobjects
 GO
 CREATE PROCEDURE LOS_CAPOS.spImportarHechosVentasAutopartes AS
 INSERT INTO LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES
-(id_autoparte/*, id_cliente_venta*/, id_sucursal, id_tiempo, venta_cant, venta_precio_unitario, venta_precio_total)
-SELECT
-dim_a.id_autoparte,
---dim_cliente.id_cliente,
-dim_suc.id_sucursal,
-dim_t.id_tiempo,
-item.cant_facturada,
-item.precio_unitario_facturado,
-item.precio_total_facturado
-
-FROM LOS_CAPOS.ITEMS_FACTURAS item
---TRAIGO DE LA RDB
-INNER JOIN LOS_CAPOS.FACTURAS facturas ON (facturas.id_factura = item.id_factura)
---INNER JOIN LOS_CAPOS.CLIENTES_VENTAS cliente_ventas ON (cliente_ventas.id_factura = facturas.id_factura)
-
---INNER JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, cliente_ventas.cliente_v_fecha_nac, GETDATE())))
-INNER JOIN LOS_CAPOS.SUCURSALES suc ON (facturas.fac_sucursal_ciudad = suc.sucursal_ciudad AND facturas.fac_sucursal_direccion = suc.sucursal_direccion)
-INNER JOIN LOS_CAPOS.AUTOPARTES autopartes ON (autopartes.id_autoparte = item.id_autoparte)
-INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autopartes.id_modelo)
---JOINEO CON LAS DIMENSIONES
-INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOPARTES dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
---INNER JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, cliente_ventas.cliente_v_fecha_nac, GETDATE())))
-INNER JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
-INNER JOIN LOS_CAPOS.BI_TIEMPO dim_t ON (dim_t.tiempo_anio = YEAR(facturas.factura_fecha) AND dim_t.tiempo_mes = MONTH(facturas.factura_fecha))
-;
-GO
-
-EXEC LOS_CAPOS.spImportarHechosVentasAutopartes
-GO
---SELECT * FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES
-
-
-
-IF EXISTS ( SELECT *  FROM   sysobjects 
-            WHERE  id = object_id(N'LOS_CAPOS.spImportarHechosVentasAutopartes') 
-					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
-	DROP PROCEDURE LOS_CAPOS.spImportarHechosVentasAutopartes
-GO
-CREATE PROCEDURE LOS_CAPOS.spImportarHechosVentasAutopartes AS
-INSERT INTO LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES
 (id_autoparte, id_cliente_venta, id_sucursal, id_tiempo, venta_cant, venta_precio_unitario, venta_precio_total)
 SELECT
 dim_a.id_autoparte,
@@ -561,6 +521,32 @@ JOIN LOS_CAPOS.BI_TIEMPO dim_t ON (dim_t.tiempo_anio = YEAR(f.factura_fecha) AND
 EXEC LOS_CAPOS.spImportarHechosVentasAutopartes
 GO
 
+/*********************************** VIEWS ***********************************/
+
+IF OBJECT_ID('LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA;
+GO
+CREATE VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA AS
+SELECT AVG(compra.compra_precio_total) AS PRECIO_PROMEDIO_COMPRA,
+	(SELECT AVG(ventas.venta_precio_total)
+		FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS ventas)  AS PRECIO_PROMEDIO_VENTAS
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS compra
+GO
+
+-- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA
+
+IF OBJECT_ID('LOS_CAPOS.TOTAL_SUCURSAL_POR_MES', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.TOTAL_SUCURSAL_POR_MES;
+GO
+CREATE VIEW LOS_CAPOS.TOTAL_SUCURSAL_POR_MES AS
+SELECT compra.id_sucursal, SUM(compra.compra_precio_total) AS TOTAL, t.tiempo_mes AS NUMERO_MES, T.tiempo_anio AS ANIO
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS compra
+JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = compra.id_tiempo)
+GROUP BY compra.id_sucursal, t.tiempo_mes, t.tiempo_anio
+GO
+
+--NOTA: Consideramos que es oportuno agregar el Anio para poder discernir los totales de un mes entre cada uno. 
+-- SELECT * FROM LOS_CAPOS.TOTAL_SUCURSAL_POR_MES
 
 /*
 SELECT *
@@ -575,6 +561,8 @@ INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.model
 GROUP BY autos.id_auto
 HAVING COUNT (*) > 1
 WHERE item.id_auto IS NOT NULL*/
+
+
 
 
 /*

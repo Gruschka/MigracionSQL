@@ -30,6 +30,9 @@ EXEC sp_fkeys 'AUTOPARTES'
 
 /*********************************** CREACION DE TABLAS ***********************************/
 
+IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
+  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
+
 /*********************************** DIMENSIONES ***********************************/
 
 /**** DIMENSION TIEMPO *****/
@@ -114,27 +117,19 @@ CREATE TABLE LOS_CAPOS.BI_DIMENSION_SUCURSAL (
 
 /**** HECHOS COMPRAS AUTOS *****/
 
-IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
 CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
-	id_tiempo INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
 	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
 	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
 	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
-	PRIMARY KEY( id_tiempo, id_sucursal, id_auto, id_cliente_compra ),
+	compra_cant decimal(18,0),
+	compra_precio_unitario decimal(18,2),
+	compra_precio_total decimal(18,2),
+	id_hecho INT NOT NULL IDENTITY(1,1)
+PRIMARY KEY,
+	--PRIMARY KEY(  id_sucursal, id_auto, id_cliente_compra ) ,
 );
 
-/**** HECHOS COMPRAS AUTOS *****/
 
-IF OBJECT_ID('LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS', 'U') IS NOT NULL
-  DROP TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS;
-CREATE TABLE LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS (
-	id_tiempo INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
-	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
-	id_auto INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOS(id_auto),
-	id_cliente_compra INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_C(id_cliente),
-	PRIMARY KEY( id_tiempo, id_sucursal, id_auto, id_cliente_compra ),
-);
 
 /*********************************** IMPORT FUNCTIONS ***********************************/
 
@@ -283,7 +278,7 @@ GO
 EXEC LOS_CAPOS.spImportarAutos
 GO
 
-
+--select * from LOS_CAPOS.BI_DIMENSION_AUTOS
 
 /**** IMPORTAR AUTOPARTES *****/
 --select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
@@ -330,8 +325,34 @@ GO
 
 --select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
 
---SELECT DATEDIFF(year, '2017/08/25', '2011/08/25') AS DateDiff;
 
+INSERT INTO LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
+(  id_auto, id_cliente_compra, id_sucursal, compra_cant, compra_precio_unitario, compra_precio_total)
+SELECT
+ISNULL(dim_a.id_auto, 0),
+ISNULL(dim_cliente.id_cliente, 0),
+ISNULL(dim_suc.id_sucursal, 0),
+ISNULL(item.compra_cant, 0),
+ISNULL(item.compra_precio_unitario, 0),
+ISNULL(item.compra_precio_total, 0)
+--SELECT *
+FROM LOS_CAPOS.ITEMS_COMPRAS item
+--TRAIGO DE LA RDB
+INNER JOIN LOS_CAPOS.COMPRAS compras ON (compras.id_compras = item.id_compras)
+INNER JOIN LOS_CAPOS.CLIENTES_COMPRAS cliente_compra ON (cliente_compra.id_clientes_compras = compras.id_clientes_compras)
+INNER JOIN LOS_CAPOS.SUCURSALES suc ON (compras.id_sucursal = suc.id_sucursal)
+INNER JOIN LOS_CAPOS.AUTOS auto ON (auto.id_auto = item.id_auto)
+INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = auto.id_modelo)
+--JOINEO CON LAS DIMENSIONES
+INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
+INNER JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, cliente_compra.cliente_fecha_nac, GETDATE())))
+INNER JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
+WHERE item.id_auto IS NOT NULL
+
+SELECT DISTINCT id_sucursal, id_auto, id_cliente_compra FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
+GROUP BY id_sucursal, id_auto, id_cliente_compra
+ORDER BY id_auto
+select * from LOS_CAPOS.ITEMS_COMPRAS WHERE id_auto IS NOT NULL
 
 /*
 select * from LOS_CAPOS.CAJAS
@@ -347,6 +368,6 @@ select * from LOS_CAPOS.COMPRAS
 select * from LOS_CAPOS.ITEMS_COMPRAS
 select * from LOS_CAPOS.clientes_ventas
 SELECT * FROM LOS_CAPOS.Facturas
-SELECT * FROM LOS_CAPOS.ITEMS_Facturas
+SELECT * FROM LOS_CAPOS.ITEMS_Facturas where id_auto is not null
 SELECT * FROM gd_esquema.Maestra WHERE FACTURA_NRO IS NULL
 */

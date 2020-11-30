@@ -1,24 +1,24 @@
 USE GD2C2020
 GO
 
-/*Tiempo (año y mes) <-- DE ACÁ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACIÓN POR MES
+/*Tiempo (aÃ±o y mes) <-- DE ACÃ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACIÃ“N POR MES
 Cliente (edad, sexo)
-Edad: 18 - 30 años / 31 – 50 años / > 50 años
+Edad: 18 - 30 aÃ±os / 31 â€“ 50 aÃ±os / > 50 aÃ±os
 Sexo: F / M / NULL
 SE DESPRENDEN 3*3 = 9 REGISTROS
-Sobre estas dimensiones se deberán realizar una serie de VISTAS que deberán <-- DICE ESPECIFICAMENTE VISTAS
-proveer, en forma simple desde consultas directas la siguiente información:
-Automóviles:
-o Cantidad de automóviles, vendidos y comprados x sucursal y mes
-o Precio promedio de automóviles, vendidos y comprados.
-o Ganancias (precio de venta – precio de compra) x Sucursal x mes
-o Promedio de tiempo en stock de cada modelo de automóvil.
+Sobre estas dimensiones se deberÃ¡n realizar una serie de VISTAS que deberÃ¡n <-- DICE ESPECIFICAMENTE VISTAS
+proveer, en forma simple desde consultas directas la siguiente informaciÃ³n:
+AutomÃ³viles:
+o Cantidad de automÃ³viles, vendidos y comprados x sucursal y mes
+o Precio promedio de automÃ³viles, vendidos y comprados.
+o Ganancias (precio de venta â€“ precio de compra) x Sucursal x mes
+o Promedio de tiempo en stock de cada modelo de automÃ³vil.
 o
 Autopartes
 o Precio promedio de cada autoparte, vendida y comprada.
-o Ganancias (precio de venta – precio de compra) x Sucursal x mes
+o Ganancias (precio de venta â€“ precio de compra) x Sucursal x mes
 o Promedio de tiempo en stock de cada autoparte.
-o Máxima cantidad de stock por cada sucursal (anual)
+o MÃ¡xima cantidad de stock por cada sucursal (anual)
 */
 
 /* TIPS:
@@ -190,13 +190,13 @@ IF EXISTS ( SELECT *  FROM   sysobjects
 GO
 CREATE FUNCTION LOS_CAPOS.calcularFranjaEdad(@edad decimal) RETURNS nvarchar(255) AS BEGIN
 	IF (@edad >= 18 AND @edad <= 30) 
-		RETURN '18 - 30 años'
+		RETURN '18 - 30 aÃ±os'
 	
 	IF (@edad >= 31 AND @edad <= 50) 
-		RETURN '31- 50 años'
+		RETURN '31- 50 aÃ±os'
 	
 	IF (@edad > 50) 
-	RETURN 'mayoes de 50 años'
+	RETURN 'mayoes de 50 aÃ±os'
 
 	RETURN '-'
 END
@@ -516,24 +516,37 @@ JOIN LOS_CAPOS.BI_DIMENSION_AUTOPARTES dim_a ON (dim_a.modelo_nombre = md.modelo
 JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, c.cliente_v_fecha_nac, GETDATE())))
 JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
 JOIN LOS_CAPOS.BI_TIEMPO dim_t ON (dim_t.tiempo_anio = YEAR(f.factura_fecha) AND dim_t.tiempo_mes = MONTH(f.factura_fecha))
-
+;
+GO
 
 EXEC LOS_CAPOS.spImportarHechosVentasAutopartes
 GO
 
 /*********************************** VIEWS ***********************************/
 
-IF OBJECT_ID('LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA', 'V') IS NOT NULL
-    DROP VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA;
+IF OBJECT_ID('LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOS', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOS;
 GO
-CREATE VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA AS
+CREATE VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOS AS
 SELECT AVG(compra.compra_precio_total) AS PRECIO_PROMEDIO_COMPRA,
 	(SELECT AVG(ventas.venta_precio_total)
 		FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS ventas)  AS PRECIO_PROMEDIO_VENTAS
 FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS compra
 GO
 
--- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA
+-- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOS
+
+IF OBJECT_ID('LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOPARTES', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOPARTES;
+GO
+CREATE VIEW LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOPARTES AS
+SELECT AVG(compra.compra_precio_total) AS PRECIO_PROMEDIO_COMPRA,
+	(SELECT AVG(ventas.venta_precio_total)
+		FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES ventas)  AS PRECIO_PROMEDIO_VENTAS
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOPARTES compra
+GO
+
+-- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA_AUTOPARTES
 
 
 IF EXISTS (
@@ -623,13 +636,25 @@ CREATE FUNCTION LOS_CAPOS.TotalCompradoSucursalEn(@sucursal int, @mes int, @anio
 END
 GO
 
-IF OBJECT_ID('LOS_CAPOS.GANANCIA_DE_SUCURSAL', 'V') IS NOT NULL
-    DROP VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL;
+IF OBJECT_ID('LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTO', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTO;
 GO
-CREATE VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL AS
+CREATE VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTO AS
 SELECT c.id_sucursal, t.tiempo_mes, t.tiempo_anio,
 (LOS_CAPOS.TotalVendidoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) - LOS_CAPOS.TotalCompradoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) ) AS GANANCIA_TOTAL
 FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS c
+JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
+GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
+GO
+
+
+IF OBJECT_ID('LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTOPARTE', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTOPARTE;
+GO
+CREATE VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL_AUTOPARTE AS
+SELECT c.id_sucursal, t.tiempo_mes, t.tiempo_anio,
+(LOS_CAPOS.TotalVendidoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) - LOS_CAPOS.TotalCompradoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) ) AS GANANCIA_TOTAL
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOPARTES c
 JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
 GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
 GO

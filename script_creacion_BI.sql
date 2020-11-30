@@ -1,24 +1,24 @@
 USE GD2C2020
 GO
 
-/*Tiempo (a√±o y mes) <-- DE AC√Å SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACI√ìN POR MES
+/*Tiempo (aÒo y mes) <-- DE AC¡ SE DESPRENDE QUE HAY QUE SUMARIZAR LA INFORMACI”N POR MES
 Cliente (edad, sexo)
-Edad: 18 - 30 a√±os / 31 ‚Äì 50 a√±os / > 50 a√±os
+Edad: 18 - 30 aÒos / 31 ñ 50 aÒos / > 50 aÒos
 Sexo: F / M / NULL
 SE DESPRENDEN 3*3 = 9 REGISTROS
-Sobre estas dimensiones se deber√°n realizar una serie de VISTAS que deber√°n <-- DICE ESPECIFICAMENTE VISTAS
-proveer, en forma simple desde consultas directas la siguiente informaci√≥n:
-Autom√≥viles:
-o Cantidad de autom√≥viles, vendidos y comprados x sucursal y mes
-o Precio promedio de autom√≥viles, vendidos y comprados.
-o Ganancias (precio de venta ‚Äì precio de compra) x Sucursal x mes
-o Promedio de tiempo en stock de cada modelo de autom√≥vil.
+Sobre estas dimensiones se deber·n realizar una serie de VISTAS que deber·n <-- DICE ESPECIFICAMENTE VISTAS
+proveer, en forma simple desde consultas directas la siguiente informaciÛn:
+AutomÛviles:
+o Cantidad de automÛviles, vendidos y comprados x sucursal y mes
+o Precio promedio de automÛviles, vendidos y comprados.
+o Ganancias (precio de venta ñ precio de compra) x Sucursal x mes
+o Promedio de tiempo en stock de cada modelo de automÛvil.
 o
 Autopartes
 o Precio promedio de cada autoparte, vendida y comprada.
-o Ganancias (precio de venta ‚Äì precio de compra) x Sucursal x mes
+o Ganancias (precio de venta ñ precio de compra) x Sucursal x mes
 o Promedio de tiempo en stock de cada autoparte.
-o M√°xima cantidad de stock por cada sucursal (anual)
+o M·xima cantidad de stock por cada sucursal (anual)
 */
 
 /* TIPS:
@@ -169,7 +169,7 @@ CREATE TABLE LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES (
 	id_hecho INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	id_sucursal INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_SUCURSAL(id_sucursal),
 	id_autoparte INT NOT NULL FOREIGN KEY REFERENCES LOS_CAPOS.BI_DIMENSION_AUTOPARTES(id_autoparte),
-	--id_cliente_venta INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_V(id_cliente),
+	id_cliente_venta INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_CLIENTES_V(id_cliente),
 	id_tiempo INT NOT NULL  FOREIGN KEY REFERENCES LOS_CAPOS.BI_TIEMPO(id_tiempo),
 	venta_cant decimal(18,0),
 	venta_precio_unitario decimal(18,2),
@@ -190,13 +190,13 @@ IF EXISTS ( SELECT *  FROM   sysobjects
 GO
 CREATE FUNCTION LOS_CAPOS.calcularFranjaEdad(@edad decimal) RETURNS nvarchar(255) AS BEGIN
 	IF (@edad >= 18 AND @edad <= 30) 
-		RETURN '18 - 30 a√±os'
+		RETURN '18 - 30 aÒos'
 	
 	IF (@edad >= 31 AND @edad <= 50) 
-		RETURN '31- 50 a√±os'
+		RETURN '31- 50 aÒos'
 	
 	IF (@edad > 50) 
-	RETURN 'mayoes de 50 a√±os'
+	RETURN 'mayoes de 50 aÒos'
 
 	RETURN '-'
 END
@@ -326,6 +326,7 @@ GO
 
 EXEC LOS_CAPOS.spImportarAutos
 GO
+
 
 --select * from LOS_CAPOS.BI_DIMENSION_AUTOS
 
@@ -525,21 +526,54 @@ EXEC LOS_CAPOS.spImportarHechosVentasAutopartes
 GO
 --SELECT * FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES
 
+
+
+IF EXISTS ( SELECT *  FROM   sysobjects 
+            WHERE  id = object_id(N'LOS_CAPOS.spImportarHechosVentasAutopartes') 
+					and OBJECTPROPERTY(id, N'IsProcedure') = 1 )
+	DROP PROCEDURE LOS_CAPOS.spImportarHechosVentasAutopartes
+GO
+CREATE PROCEDURE LOS_CAPOS.spImportarHechosVentasAutopartes AS
+INSERT INTO LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES
+(id_autoparte, id_cliente_venta, id_sucursal, id_tiempo, venta_cant, venta_precio_unitario, venta_precio_total)
+SELECT
+dim_a.id_autoparte,
+dim_cliente.id_cliente,
+dim_suc.id_sucursal,
+dim_t.id_tiempo,
+it.cant_facturada,
+it.precio_unitario_facturado,
+it.precio_total_facturado
+FROM LOS_CAPOS.CLIENTES_VENTAS c
+--TRAIGO DE LA RDB
+JOIN LOS_CAPOS.FACTURAS f ON f.id_factura = c.id_clientes_ventas
+JOIN LOS_CAPOS.ITEMS_FACTURAS it ON it.id_factura = f.id_factura
+JOIN LOS_CAPOS.AUTOPARTES parte ON parte.id_autoparte = it.id_autoparte
+JOIN LOS_CAPOS.MODELOS md ON (md.id_modelo = parte.id_modelo)
+JOIN LOS_CAPOS.SUCURSALES suc ON (f.fac_sucursal_ciudad = suc.sucursal_ciudad AND f.fac_sucursal_direccion = suc.sucursal_direccion)
+--JOINEO CON LAS DIMENSIONES
+JOIN LOS_CAPOS.BI_DIMENSION_AUTOPARTES dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre AND dim_a.autoparte_descripcion = parte.autoparte_descripcion)
+JOIN LOS_CAPOS.BI_CLIENTES_C dim_cliente ON (dim_cliente.cliente_franja_edad = LOS_CAPOS.calcularFranjaEdad (DATEDIFF(year, c.cliente_v_fecha_nac, GETDATE())))
+JOIN LOS_CAPOS.BI_DIMENSION_SUCURSAL dim_suc ON (dim_suc.sucursal_direccion = suc.sucursal_direccion AND DIM_SUC.sucursal_ciudad = SUC.sucursal_ciudad)
+JOIN LOS_CAPOS.BI_TIEMPO dim_t ON (dim_t.tiempo_anio = YEAR(f.factura_fecha) AND dim_t.tiempo_mes = MONTH(f.factura_fecha))
+
+
+EXEC LOS_CAPOS.spImportarHechosVentasAutopartes
+GO
+
+
 /*
 SELECT *
 FROM LOS_CAPOS.AUTOS autos
 INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
 INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
 WHERE autos.id_auto = 1
-
-
 SELECT autos.id_auto, COUNT (*)
 FROM LOS_CAPOS.AUTOS autos
 INNER JOIN LOS_CAPOS.MODELOS md	ON (md.id_modelo = autos.id_modelo)
 INNER JOIN LOS_CAPOS.BI_DIMENSION_AUTOS dim_a ON (dim_a.modelo_nombre = md.modelo_nombre AND dim_a.fabricante_nombre = MD.fabricante_nombre)
 GROUP BY autos.id_auto
 HAVING COUNT (*) > 1
-
 WHERE item.id_auto IS NOT NULL*/
 
 
@@ -554,7 +588,6 @@ select * from LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOPARTES
 SELECT * FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS
 SELECT * FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOPARTES order by id_autoparte
 select * from LOS_CAPOS.BI_TIEMPO
-
 select * from LOS_CAPOS.CAJAS
 select * from LOS_CAPOS.SUCURSALES
 select * from LOS_CAPOS.motores

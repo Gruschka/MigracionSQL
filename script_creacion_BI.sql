@@ -373,7 +373,16 @@ WHERE item.id_auto IS NOT NULL*/
 
 
 
+
 /*
+select * from LOS_CAPOS.BI_CLIENTES_C
+select * from LOS_CAPOS.BI_CLIENTES_V
+select * from LOS_CAPOS.BI_DIMENSION_AUTOPARTES
+select * from LOS_CAPOS.BI_DIMENSION_AUTOS
+select * from LOS_CAPOS.BI_DIMENSION_SUCURSAL
+select * from LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS
+select * from LOS_CAPOS.BI_TIEMPO
+
 select * from LOS_CAPOS.CAJAS
 select * from LOS_CAPOS.SUCURSALES
 select * from LOS_CAPOS.motores

@@ -634,16 +634,6 @@ JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
 GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
 GO
 
--- fecha compra y venta por id
-SELECT AVG(DATEDIFF(MONTH, c.compra_fecha, fact.factura_Fecha)) AS MESES_EN_STOCK_PROMEDIO
-FROM LOS_CAPOS.ITEMS_COMPRAS it_c
-JOIN LOS_CAPOS.COMPRAS c ON it_c.id_compras = c.id_compras
-JOIN LOS_CAPOS.AUTOS a ON a.id_auto = it_c.id_item
-JOIN LOS_CAPOS.MODELOS md ON a.id_modelo = md.id_modelo
-JOIN LOS_CAPOS.ITEMS_FACTURAS it_f ON (it_f.id_auto = a.id_auto)
-JOIN LOS_CAPOS.FACTURAS fact ON it_f.id_factura = fact.id_factura
-WHERE md.modelo_nombre = 'Superb'
-
 
 IF EXISTS (
     SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.MesesEnStockPromedioDeModelo') 

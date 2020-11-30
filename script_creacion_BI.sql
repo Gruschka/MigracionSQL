@@ -536,8 +536,11 @@ GO
 -- SELECT * FROM LOS_CAPOS.VISTA_PROMEDIO_VENTA_COMPRA
 
 
-IF OBJECT_ID('LOS_CAPOS.TotalComprasDe', 'F') IS NOT NULL
-    DROP VIEW LOS_CAPOS.TotalComprasDe;
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.TotalComprasDe') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION LOS_CAPOS.TotalComprasDe
 GO
 CREATE FUNCTION LOS_CAPOS.TotalComprasDe(@sucursal int, @mes int, @anio int) RETURNS numeric(10) AS BEGIN
 	DECLARE @valor int = (
@@ -551,10 +554,11 @@ CREATE FUNCTION LOS_CAPOS.TotalComprasDe(@sucursal int, @mes int, @anio int) RET
 END
 GO
 
-IF EXISTS ( SELECT *  FROM   sysobjects 
-            WHERE  id = object_id(N'LOS_CAPOS.TotalVentasDe') 
-					and OBJECTPROPERTY(id, N'IsFunction') = 1 )
-	DROP FUNCTION LOS_CAPOS.TotalVentasDe
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.TotalVentasDe') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION LOS_CAPOS.TotalVentasDe
 GO
 CREATE FUNCTION LOS_CAPOS.TotalVentasDe(@sucursal int, @mes int, @anio int) RETURNS numeric(10) AS BEGIN
 	DECLARE @valor int = (

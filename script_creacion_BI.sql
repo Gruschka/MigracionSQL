@@ -585,7 +585,54 @@ JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
 GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
 GO
 
-SELECT * FROM LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES
+
+
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.TotalVendidoSucursalEn') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION LOS_CAPOS.TotalVendidoSucursalEn
+GO
+CREATE FUNCTION LOS_CAPOS.TotalVendidoSucursalEn(@sucursal int, @mes int, @anio int) RETURNS decimal AS BEGIN
+	DECLARE @valor decimal = (
+		SELECT SUM(v.venta_precio_total) 
+		FROM LOS_CAPOS.BI_HECHOS_VENTAS_AUTOS v 
+		JOIN LOS_CAPOS.BI_TIEMPO t ON t.id_tiempo = v.id_tiempo
+		group by id_sucursal, t.tiempo_mes, t.tiempo_anio
+		HAVING t.tiempo_mes = @mes AND t.tiempo_anio = @anio AND id_sucursal = @sucursal
+	)
+	return @valor
+END
+GO
+
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'LOS_CAPOS.TotalCompradoSucursalEn') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION LOS_CAPOS.TotalCompradoSucursalEn
+GO
+CREATE FUNCTION LOS_CAPOS.TotalCompradoSucursalEn(@sucursal int, @mes int, @anio int) RETURNS decimal AS BEGIN
+	DECLARE @valor decimal = (
+		SELECT SUM(c.compra_precio_total) 
+		FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS c 
+		JOIN LOS_CAPOS.BI_TIEMPO t ON t.id_tiempo = c.id_tiempo
+		group by id_sucursal, t.tiempo_mes, t.tiempo_anio
+		HAVING t.tiempo_mes = @mes AND t.tiempo_anio = @anio AND id_sucursal = @sucursal
+	)
+	return @valor
+END
+GO
+
+IF OBJECT_ID('LOS_CAPOS.GANANCIA_DE_SUCURSAL', 'V') IS NOT NULL
+    DROP VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL;
+GO
+CREATE VIEW LOS_CAPOS.GANANCIA_DE_SUCURSAL AS
+SELECT c.id_sucursal, t.tiempo_mes, t.tiempo_anio,
+(LOS_CAPOS.TotalVendidoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) - LOS_CAPOS.TotalCompradoSucursalEn(c.id_sucursal, t.tiempo_mes, t.tiempo_anio) ) AS GANANCIA_TOTAL
+FROM LOS_CAPOS.BI_HECHOS_COMPRAS_AUTOS c
+JOIN LOS_CAPOS.BI_TIEMPO t ON (t.id_tiempo = c.id_tiempo)
+GROUP BY c.id_sucursal, t.tiempo_mes, t.tiempo_anio
+GO
 
 
 -- SELECT * FROM LOS_CAPOS.TOTAL_VENDIDOS_COMPRADOS_SUCURSAL_POR_MES
